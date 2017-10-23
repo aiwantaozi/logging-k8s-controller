@@ -109,8 +109,8 @@ func envLoggingSchema(envLogging *client.Schema) {
 }
 
 func serviceLoggingSchema(serviceLogging *client.Schema) {
-	serviceLogging.CollectionMethods = []string{"GET"}
-	serviceLogging.ResourceMethods = []string{"GET", "POST", "PUT", "DELETE"}
+	serviceLogging.CollectionMethods = []string{"GET", "POST"}
+	serviceLogging.ResourceMethods = []string{"GET", "PUT", "DELETE"}
 	/*
 
 		serviceLoggingName := serviceLogging.ResourceFields["name"]
