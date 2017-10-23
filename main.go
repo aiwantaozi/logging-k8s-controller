@@ -9,6 +9,7 @@ import (
 	"github.com/aiwantaozi/logging-k8s-controller/api"
 	"github.com/aiwantaozi/logging-k8s-controller/k8sutils"
 	"github.com/urfave/cli"
+	"github.com/urfave/negroni"
 )
 
 var VERSION = "v0.0.0-dev"
@@ -78,7 +79,12 @@ func startServer(c *cli.Context) error {
 		return err
 	}
 	router := http.Handler(api.NewRouter(server))
+
+	n := negroni.New()
+	n.Use(negroni.NewLogger())
+	n.UseHandler(router)
+
 	logrus.Infof("Listening on %s", listen)
 
-	return http.ListenAndServe(listen, router)
+	return http.ListenAndServe(listen, n)
 }

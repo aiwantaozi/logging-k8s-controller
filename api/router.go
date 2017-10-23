@@ -29,21 +29,6 @@ func HandleError(s *client.Schemas, t HandleFuncWithError) http.Handler {
 	}))
 }
 
-// func WriteErr(err error, a *api.ApiContext) {
-// 	logrus.Errorf("Error in request: %v", err)
-// 	writeErr := a.WriteResource(&ServerApiError{
-// 		Resource: client.Resource{
-// 			Type: "error",
-// 		},
-// 		Status:  500,
-// 		Code:    "Server Error",
-// 		Message: err.Error(),
-// 	})
-// 	if writeErr != nil {
-// 		logrus.Errorf("Failed to write err: %v", err)
-// 	}
-// }
-
 func NewRouter(s *Server) *mux.Router {
 	schemas := NewSchema()
 	r := mux.NewRouter().StrictSlash(true)

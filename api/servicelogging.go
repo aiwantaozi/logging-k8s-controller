@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	loggingv1 "github.com/aiwantaozi/infra-logging/client/logging/v1"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -14,7 +13,6 @@ import (
 )
 
 func (s *Server) ServiceLoggingsList(w http.ResponseWriter, req *http.Request) error {
-	logrus.Info("-------list")
 	apiContext := api.GetApiContext(req)
 	res, err := s.listServiceLogging(apiContext)
 	if err != nil {
@@ -36,7 +34,6 @@ func (s *Server) ServiceLoggingsList(w http.ResponseWriter, req *http.Request) e
 }
 
 func (s *Server) ServiceLoggingsGet(w http.ResponseWriter, req *http.Request) error {
-	logrus.Info("-------get")
 	name := mux.Vars(req)["name"]
 
 	apiContext := api.GetApiContext(req)
@@ -50,7 +47,6 @@ func (s *Server) ServiceLoggingsGet(w http.ResponseWriter, req *http.Request) er
 }
 
 func (s *Server) ServiceLoggingsSet(w http.ResponseWriter, req *http.Request) error {
-	logrus.Info("-------set")
 	var sl ServiceLogging
 
 	apiContext := api.GetApiContext(req)
@@ -71,9 +67,6 @@ func (s *Server) ServiceLoggingsSet(w http.ResponseWriter, req *http.Request) er
 }
 
 func (s *Server) ServiceLoggingsDelete(w http.ResponseWriter, req *http.Request) error {
-	//TODO: need also remove the deployment when no env open the setting
-	logrus.Info("-------delete")
-
 	var sl ServiceLogging
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&sl)
@@ -191,7 +184,6 @@ func toResServiceLogging(apiContext *api.ApiContext, crd []loggingv1.Source) (re
 			InputPath:   v.InputPath,
 			InputFormat: v.InputFormat,
 			Resource: client.Resource{
-				//TODO: decide what should be id
 				Id:      v.Name,
 				Type:    SchemaServiceLogging,
 				Actions: map[string]string{},
