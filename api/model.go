@@ -25,6 +25,14 @@ type EnvLogging struct {
 	ServicesLogging          []*ServiceLogging
 }
 
+// type ServiceLoggingEmb struct {
+// 	client.Resource
+// 	Name        string `json:"name"`
+// 	Environment string `json:"environment"`
+// 	InputPath   string `json:"inputPath"`
+// 	InputFormat string `json:"inputFormat"`
+// }
+
 type ServiceLogging struct {
 	client.Resource
 	Name        string `json:"name"`
@@ -49,7 +57,7 @@ func NewSchema() *client.Schemas {
 	schemas.AddType("error", ServerApiError{})
 
 	envLoggingSchema(schemas.AddType("envlogging", EnvLogging{}))
-	serviceLoggingSchema(schemas.AddType("servicelogging", ServiceLogging{}))
+	// serviceLoggingSchema(schemas.AddType("servicelogging", ServiceLogging{}))
 	return schemas
 }
 
