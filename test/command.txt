@@ -1,0 +1,13 @@
+curl -X PUT \
+-H 'Accept: application/json' \
+-H 'Content-Type: application/json' \
+-d '{"actions":{"delete":"http://localhost:8090/v6/envloggings/rancherlogging?action=delete", "update":"http://localhost:8090/v6/envloggings/rancherlogging?action=update"}, "environment":"default", "id":"rancherlogging", "links":{"self":"http://localhost:8090/v6/envloggings/rancherlogging", "serviceloggings":"http://localhost:8090/v6/envloggings/rancherlogging/serviceloggings"}, "name":"rancherlogging", "outputHost":"192.168.33.176", "outputLogstashDateformat":"%Y-%m-%d %H:%M:%S", "outputLogstashPrefix":"logstash123", "outputPort":0, "outputTagKey":"mytag123", "outputType":"elasticsearch", "provider":"", "type":"envlogging"}' \
+'http://localhost:8090/v6/envloggings/rancherlogging'
+
+
+
+curl -X POST \
+-H 'Accept: application/json' \
+-H 'Content-Type: application/json' \
+-d '{"actions":{"delete":"http://localhost:8090/v6/envloggings/rancherlogging?action=delete", "update":"http://localhost:8090/v6/envloggings/rancherlogging?action=update"}, "environment":"default", "id":"rancherlogging", "links":{"self":"http://localhost:8090/v6/envloggings/rancherlogging", "serviceloggings":"http://localhost:8090/v6/envloggings/rancherlogging/serviceloggings"}, "name":"rancherlogging", "outputHost":"192.168.33.176", "outputLogstashDateformat":"%Y-%m-%d %H:%M:%S", "outputLogstashPrefix":"logstash222", "outputPort":0, "outputTagKey":"mytag123", "outputType":"elasticsearch", "provider":"", "type":"envlogging"}' \
+'http://localhost:8090/v6/envloggings'

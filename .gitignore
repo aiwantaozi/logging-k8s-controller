@@ -4,6 +4,5 @@
 *.swp
 /.trash-cache
 
-/vendor/**/.git/
+debug
 
-/vendor/*/*/*/.git/

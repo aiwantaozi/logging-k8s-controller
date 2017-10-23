@@ -11,7 +11,6 @@ import (
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -43,7 +42,7 @@ func (k *K8sClientConfig) New() (cfg *rest.Config, err error) {
 func NewLoggingCustomResourceDefinition(group string, labels map[string]string) *extensionsobj.CustomResourceDefinition {
 	return &extensionsobj.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   loggingv1.LoggingName + "." + group,
+			Name:   loggingv1.LoggingCRDName,
 			Labels: labels,
 		},
 		Spec: extensionsobj.CustomResourceDefinitionSpec{
@@ -77,7 +76,7 @@ func NewLoggingHostCustomResourceDefinition(group string, labels map[string]stri
 }
 
 // WaitForCRDReady waits for a third party resource to be available for use.
-func WaitForCRDReady(listFunc func(opts metav1.ListOptions) (runtime.Object, error)) error {
+func WaitForCRDReady(listFunc func(opts metav1.ListOptions) (*loggingv1.LoggingList, error)) error {
 	err := wait.Poll(3*time.Second, 10*time.Minute, func() (bool, error) {
 		_, err := listFunc(metav1.ListOptions{})
 		if err != nil {

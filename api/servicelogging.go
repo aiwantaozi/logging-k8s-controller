@@ -16,15 +16,16 @@ import (
 func (s *Server) ServiceLoggingsList(w http.ResponseWriter, req *http.Request) error {
 	logrus.Info("-------list")
 	apiContext := api.GetApiContext(req)
-	res, err := s.listServiceLogging()
+	res, err := s.listServiceLogging(apiContext)
 	if err != nil {
 		return errors.Wrap(err, "fail to list service logging")
 	}
 	resp := &client.GenericCollection{}
-	resp.ResourceType = "servicelogging"
+	resp.ResourceType = SchemaServiceLogging
 	resp.CreateTypes = map[string]string{
 		"servicelogging": apiContext.UrlBuilder.Collection("servicelogging"),
 	}
+
 	data := []interface{}{}
 	for _, item := range res {
 		data = append(data, item)
@@ -40,7 +41,7 @@ func (s *Server) ServiceLoggingsGet(w http.ResponseWriter, req *http.Request) er
 
 	apiContext := api.GetApiContext(req)
 
-	sl, err := s.getServiceLogging(name)
+	sl, err := s.getServiceLogging(apiContext, name)
 	if err != nil {
 		return errors.Wrap(err, "fail to get service logging")
 	}
@@ -88,8 +89,8 @@ func (s *Server) ServiceLoggingsDelete(w http.ResponseWriter, req *http.Request)
 	return nil
 }
 
-func (s *Server) getServiceLogging(name string) (res *ServiceLogging, err error) {
-	reslist, err := s.listServiceLogging()
+func (s *Server) getServiceLogging(apiContext *api.ApiContext, name string) (res *ServiceLogging, err error) {
+	reslist, err := s.listServiceLogging(apiContext)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +103,7 @@ func (s *Server) getServiceLogging(name string) (res *ServiceLogging, err error)
 	return nil, nil
 }
 
-func (s *Server) listServiceLogging() (res []*ServiceLogging, err error) {
+func (s *Server) listServiceLogging(apiContext *api.ApiContext) (res []*ServiceLogging, err error) {
 	logres := []*ServiceLogging{}
 	logcrdobj, err := s.mclient.LoggingV1().Loggings(loggingv1.Namespace).List(metav1.ListOptions{})
 	if err != nil {
@@ -112,7 +113,7 @@ func (s *Server) listServiceLogging() (res []*ServiceLogging, err error) {
 		return logres, nil
 	}
 
-	return toResServiceLogging(logcrdobj.Items[0].Spec.Sources), nil
+	return toResServiceLogging(apiContext, logcrdobj.Items[0].Spec.Sources), nil
 }
 
 func (s *Server) setServiceLogging(sl ServiceLogging) (*ServiceLogging, error) {
@@ -182,14 +183,23 @@ func toCRDServiceLogging(res []ServiceLogging) (crd []loggingv1.Source) {
 	return
 }
 
-func toResServiceLogging(crd []loggingv1.Source) (res []*ServiceLogging) {
+func toResServiceLogging(apiContext *api.ApiContext, crd []loggingv1.Source) (res []*ServiceLogging) {
 	for _, v := range crd {
 		sl := ServiceLogging{
 			Name:        v.Name,
 			Environment: v.Environment,
 			InputPath:   v.InputPath,
 			InputFormat: v.InputFormat,
+			Resource: client.Resource{
+				//TODO: decide what should be id
+				Id:      v.Name,
+				Type:    SchemaServiceLogging,
+				Actions: map[string]string{},
+				Links:   map[string]string{},
+			},
 		}
+		sl.Actions["update"] = apiContext.UrlBuilder.ReferenceLink(sl.Resource) + "?action=update"
+		sl.Actions["delete"] = apiContext.UrlBuilder.ReferenceLink(sl.Resource) + "?action=delete"
 		res = append(res, &sl)
 	}
 	return

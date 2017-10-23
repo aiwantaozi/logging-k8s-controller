@@ -32,13 +32,15 @@ func (s *Server) EnvLoggingsCreate(w http.ResponseWriter, req *http.Request) err
 		if err := s.createCRDs(); err != nil {
 			return err
 		}
+
 	}
 
-	lgobj, isExist := toCRDEnvLogging([]EnvLogging{sl}, &lgobjs.Items[0])
-	if isExist {
-		_, err = s.mclient.LoggingV1().Loggings(loggingv1.Namespace).Update(lgobj)
-	} else {
+	if len(lgobjs.Items) == 0 {
+		lgobj, _ := toCRDEnvLogging([]EnvLogging{sl}, nil)
 		_, err = s.mclient.LoggingV1().Loggings(loggingv1.Namespace).Create(lgobj)
+	} else {
+		lgobj, _ := toCRDEnvLogging([]EnvLogging{sl}, &lgobjs.Items[0])
+		_, err = s.mclient.LoggingV1().Loggings(loggingv1.Namespace).Update(lgobj)
 	}
 
 	if err != nil {
@@ -53,7 +55,7 @@ func (s *Server) EnvLoggingsCreate(w http.ResponseWriter, req *http.Request) err
 func (s *Server) EnvLoggingsList(w http.ResponseWriter, req *http.Request) error {
 	logrus.Info("-------list")
 	apiContext := api.GetApiContext(req)
-	res, err := s.listEnvLogging()
+	res, err := s.listEnvLogging(apiContext)
 	if err != nil {
 		return errors.Wrap(err, "fail to list service logging")
 	}
@@ -77,7 +79,7 @@ func (s *Server) EnvLoggingsGet(w http.ResponseWriter, req *http.Request) error 
 
 	apiContext := api.GetApiContext(req)
 
-	sl, err := s.getEnvLogging(name)
+	sl, err := s.getEnvLogging(apiContext, name)
 	if err != nil {
 		return errors.Wrap(err, "fail to get service logging")
 	}
@@ -122,8 +124,8 @@ func (s *Server) EnvLoggingsDelete(w http.ResponseWriter, req *http.Request) err
 	return nil
 }
 
-func (s *Server) getEnvLogging(name string) (res *EnvLogging, err error) {
-	reslist, err := s.listEnvLogging()
+func (s *Server) getEnvLogging(apiContext *api.ApiContext, name string) (res *EnvLogging, err error) {
+	reslist, err := s.listEnvLogging(apiContext)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +138,7 @@ func (s *Server) getEnvLogging(name string) (res *EnvLogging, err error) {
 	return nil, nil
 }
 
-func (s *Server) listEnvLogging() (res []*EnvLogging, err error) {
+func (s *Server) listEnvLogging(apiContext *api.ApiContext) (res []*EnvLogging, err error) {
 	logres := []*EnvLogging{}
 	logcrdobj, err := s.mclient.LoggingV1().Loggings(loggingv1.Namespace).List(metav1.ListOptions{})
 	if err != nil {
@@ -146,7 +148,7 @@ func (s *Server) listEnvLogging() (res []*EnvLogging, err error) {
 		return logres, nil
 	}
 
-	return toResEnvLogging(logcrdobj.Items[0]), nil
+	return toResEnvLogging(apiContext, logcrdobj.Items[0]), nil
 }
 
 func (s *Server) setEnvLogging(sl EnvLogging) (*EnvLogging, error) {
@@ -159,7 +161,7 @@ func (s *Server) setEnvLogging(sl EnvLogging) (*EnvLogging, error) {
 	}
 
 	lgobj, _ := toCRDEnvLogging([]EnvLogging{sl}, &logobjs.Items[0])
-
+	logrus.Info("here2 %v", lgobj)
 	_, err = s.mclient.LoggingV1().Loggings(loggingv1.Namespace).Update(lgobj)
 	if err != nil {
 		return nil, errors.Wrap(err, "update service logging fail")
@@ -195,7 +197,7 @@ func (s *Server) deleteEnvLogging(name string, env string) error {
 
 func toCRDEnvLogging(res []EnvLogging, crd *loggingv1.Logging) (*loggingv1.Logging, bool) {
 	isExist := true
-	isServiceExist := false
+	// isServiceExist := false
 	isTargetExist := false
 	if crd == nil {
 		isExist = false
@@ -214,46 +216,47 @@ func toCRDEnvLogging(res []EnvLogging, crd *loggingv1.Logging) (*loggingv1.Loggi
 		}
 	}
 
+	newTargets := []loggingv1.Target{}
+	var ntg loggingv1.Target
 	for _, v := range res {
-		for _, v2 := range v.ServicesLogging {
-			if isExist {
-				for _, v3 := range crd.Spec.Sources {
-					if v3.Environment == v2.Environment && v3.Name == v2.Name {
-						isServiceExist = true
-						v3.InputPath = v2.InputPath
-						v3.InputFormat = v2.InputFormat
-					}
-				}
-			}
-			if !isExist || !isServiceExist {
-				sv := loggingv1.Source{
-					Name:        v2.Name,
-					InputPath:   v2.InputPath,
-					InputFormat: v2.InputFormat,
-					Environment: v2.Environment,
-				}
-				crd.Spec.Sources = append(crd.Spec.Sources, sv)
-			}
-		}
+		// for _, v2 := range v.ServicesLogging {
+		// 	if isExist {
+		// 		for _, v3 := range crd.Spec.Sources {
+		// 			if v3.Environment == v2.Environment && v3.Name == v2.Name {
+		// 				isServiceExist = true
+		// 				v3.InputPath = v2.InputPath
+		// 				v3.InputFormat = v2.InputFormat
+		// 			}
+		// 		}
+		// 	}
+		// 	if !isExist || !isServiceExist {
+		// 		sv := loggingv1.Source{
+		// 			Name:        v2.Name,
+		// 			InputPath:   v2.InputPath,
+		// 			InputFormat: v2.InputFormat,
+		// 			Environment: v2.Environment,
+		// 		}
+		// 		crd.Spec.Sources = append(crd.Spec.Sources, sv)
+		// 	}
+		// }
 
-		for _, v4 := range crd.Spec.Targets {
-			if isExist {
-				for _, v5 := range crd.Spec.Targets {
-					if v5.Environment == v4.Environment && v5.OutputType == v4.OutputType {
-						isTargetExist = true
-						v5.OutputType = v4.OutputType
-						v5.OutputHost = v4.OutputHost
-						v5.OutputPort = v4.OutputPort
-						v5.OutputLogstashPrefix = v4.OutputLogstashPrefix
-						v5.OutputLogstashDateformat = v4.OutputLogstashDateformat
-						v5.OutputTagKey = v4.OutputTagKey
-					}
+		if isExist {
+			for _, v5 := range crd.Spec.Targets {
+				if v5.Environment == v.Environment && v5.OutputType == v.OutputType {
+					isTargetExist = true
+					ntg.OutputType = v.OutputType
+					ntg.OutputHost = v.OutputHost
+					ntg.OutputPort = v.OutputPort
+					ntg.OutputLogstashPrefix = v.OutputLogstashPrefix
+					ntg.OutputLogstashDateformat = v.OutputLogstashDateformat
+					ntg.OutputTagKey = v.OutputTagKey
+				} else {
+					newTargets = append(newTargets, v5)
 				}
 			}
-
 		}
 		if !isExist || !isTargetExist {
-			tg := loggingv1.Target{
+			ntg = loggingv1.Target{
 				Environment:              v.Environment,
 				OutputType:               v.OutputType,
 				OutputHost:               v.OutputHost,
@@ -262,24 +265,34 @@ func toCRDEnvLogging(res []EnvLogging, crd *loggingv1.Logging) (*loggingv1.Loggi
 				OutputLogstashDateformat: v.OutputLogstashDateformat,
 				OutputTagKey:             v.OutputTagKey,
 			}
-			crd.Spec.Targets = append(crd.Spec.Targets, tg)
 		}
 	}
+	crd.Spec.Targets = append(newTargets, ntg)
 	return crd, isExist
 }
 
-func toResEnvLogging(crd loggingv1.Logging) (res []*EnvLogging) {
+func toResEnvLogging(apiContext *api.ApiContext, crd loggingv1.Logging) (res []*EnvLogging) {
 	//TODO: filter different namespace
-	var svl []*ServiceLogging
-	for _, v := range crd.Spec.Sources {
-		sv := ServiceLogging{
-			Name:        v.Name,
-			Environment: v.Environment,
-			InputPath:   v.InputPath,
-			InputFormat: v.InputFormat,
-		}
-		svl = append(svl, &sv)
-	}
+	// var svl []*ServiceLogging
+	// for _, v := range crd.Spec.Sources {
+	// 	sv := ServiceLogging{
+	// 		Name:        v.Name,
+	// 		Environment: v.Environment,
+	// 		InputPath:   v.InputPath,
+	// 		InputFormat: v.InputFormat,
+	// 		Resource: client.Resource{
+	// 			//TODO: decide what should be id
+	// 			Id:      v.Name,
+	// 			Type:    SchemaServiceLogging,
+	// 			Actions: map[string]string{},
+	// 			Links:   map[string]string{},
+	// 		},
+	// 	}
+
+	// 	sv.Actions["update"] = apiContext.UrlBuilder.ReferenceLink(sv.Resource) + "?action=update"
+	// 	sv.Actions["delete"] = apiContext.UrlBuilder.ReferenceLink(sv.Resource) + "?action=delete"
+	// 	svl = append(svl, &sv)
+	// }
 	for _, v := range crd.Spec.Targets {
 		sl := EnvLogging{
 			Name:                     crd.Name,
@@ -289,8 +302,19 @@ func toResEnvLogging(crd loggingv1.Logging) (res []*EnvLogging) {
 			OutputLogstashPrefix:     v.OutputLogstashPrefix,
 			OutputLogstashDateformat: v.OutputLogstashDateformat,
 			OutputTagKey:             v.OutputTagKey,
-			ServicesLogging:          svl,
+			OutputType:               v.OutputType,
+			// ServicesLogging:          svl,
+			Resource: client.Resource{
+				//TODO: decide what should be id
+				Id:      crd.Name,
+				Type:    SchemaEnvLogging,
+				Actions: map[string]string{},
+				Links:   map[string]string{},
+			},
 		}
+		sl.Actions["update"] = apiContext.UrlBuilder.ReferenceLink(sl.Resource) + "?action=update"
+		sl.Actions["delete"] = apiContext.UrlBuilder.ReferenceLink(sl.Resource) + "?action=delete"
+		sl.Links["serviceloggings"] = apiContext.UrlBuilder.Link(sl.Resource, "serviceloggings")
 		res = append(res, &sl)
 	}
 	return
@@ -308,7 +332,5 @@ func (s *Server) createCRDs() error {
 
 	logrus.Info("msg", "CRD created", "crd", crd.Spec.Names.Kind)
 
-	//TODO: need to wait
-	// return k8sutils.WaitForCRDReady(s.mclient.LoggingV1().Loggings(loggingv1.Namespace).List)
-	return nil
+	return k8sutils.WaitForCRDReady(s.mclient.LoggingV1().Loggings(loggingv1.Namespace).List)
 }

@@ -9,7 +9,13 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const DefaultEnviroment = "default"
+const (
+	DefaultEnviroment         = "default"
+	SchemaServiceLogging      = "servicelogging"
+	SchemaServiceLoggingPluge = "serviceloggings"
+	SchemaEnvLogging          = "envlogging"
+	SchemaEnvLoggingPluge     = "envloggings"
+)
 
 type EnvLogging struct {
 	client.Resource
@@ -22,7 +28,6 @@ type EnvLogging struct {
 	OutputLogstashPrefix     string `json:"outputLogstashPrefix"`
 	OutputLogstashDateformat string `json:"outputLogstashDateformat"`
 	OutputTagKey             string `json:"outputTagKey"` // (optional; default=fluentd)
-	ServicesLogging          []*ServiceLogging
 }
 
 // type ServiceLoggingEmb struct {
@@ -43,10 +48,11 @@ type ServiceLogging struct {
 
 type ServerApiError struct {
 	client.Resource
-	Status  int    `json:"status"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	Detail  string `json:"detail"`
+	Status   int    `json:"status"`
+	Code     string `json:"code"`
+	Message  string `json:"message"`
+	Detail   string `json:"detail"`
+	BaseType string `json:"baseType"`
 }
 
 func NewSchema() *client.Schemas {
@@ -56,14 +62,15 @@ func NewSchema() *client.Schemas {
 	schemas.AddType("schema", client.Schema{})
 	schemas.AddType("error", ServerApiError{})
 
-	envLoggingSchema(schemas.AddType("envlogging", EnvLogging{}))
-	// serviceLoggingSchema(schemas.AddType("servicelogging", ServiceLogging{}))
+	envLoggingSchema(schemas.AddType(SchemaEnvLogging, EnvLogging{}))
+	serviceLoggingSchema(schemas.AddType(SchemaServiceLogging, ServiceLogging{}))
 	return schemas
 }
 
 func envLoggingSchema(envLogging *client.Schema) {
-	envLogging.CollectionMethods = []string{"GET"}
+	envLogging.CollectionMethods = []string{"GET", "POST"}
 	envLogging.ResourceMethods = []string{"GET", "PUT", "DELETE"}
+	envLogging.IncludeableLinks = []string{SchemaEnvLoggingPluge}
 	/*
 		envLoggingName := envLogging.ResourceFields["name"]
 		// envLoggingName.Required = true
