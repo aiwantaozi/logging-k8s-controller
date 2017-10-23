@@ -5,3 +5,5 @@
 /.trash-cache
 
 /vendor/**/.git/
+
+/vendor/*/*/*/.git/
