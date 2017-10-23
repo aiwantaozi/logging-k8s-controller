@@ -1,9 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/aiwantaozi/logging-k8s-controller/api"
+	"github.com/aiwantaozi/logging-k8s-controller/k8sutils"
 	"github.com/urfave/cli"
 )
 
@@ -14,10 +18,67 @@ func main() {
 	app.Name = "logging-k8s-controller"
 	app.Version = VERSION
 	app.Usage = "You need help!"
-	app.Action = func(c *cli.Context) error {
-		logrus.Info("I'm a turkey")
-		return nil
+	app.Action = startServer
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name: "cattle-url",
+			Usage: fmt.Sprintf(
+				"Specify Cattle endpoint URL",
+			),
+			EnvVar: "CATTLE_URL",
+		},
+		cli.StringFlag{
+			Name: "cattle-access-key",
+			Usage: fmt.Sprintf(
+				"Specify Cattle access key",
+			),
+			EnvVar: "CATTLE_ACCESS_KEY",
+		},
+		cli.StringFlag{
+			Name: "cattle-secret-key",
+			Usage: fmt.Sprintf(
+				"Specify Cattle secret key",
+			),
+			EnvVar: "CATTLE_SECRET_KEY",
+		},
+		cli.BoolFlag{
+			Name: "debug",
+			Usage: fmt.Sprintf(
+				"Set true to get debug logs",
+			),
+		},
+		cli.StringFlag{
+			Name:  "listen",
+			Value: ":8090",
+			Usage: fmt.Sprintf(
+				"Address to listen to (TCP)",
+			),
+		},
+		cli.StringFlag{
+			Name:  "k8s-config-path",
+			Usage: "k8s config path",
+			Value: "/Users/fengcaixiao/.kube/config",
+		},
 	}
-
 	app.Run(os.Args)
+}
+
+func startServer(c *cli.Context) error {
+	k8sut := k8sutils.K8sClientConfig{ConfigPath: c.String("k8s-config-path")}
+	cfg, err := k8sut.New()
+	if err != nil {
+		return err
+	}
+	if err := k8sut.IsReachable(); err != nil {
+		return err
+	}
+	listen := c.GlobalString("listen")
+	server, err := api.NewServer(cfg)
+	if err != nil {
+		return err
+	}
+	router := http.Handler(api.NewRouter(server))
+	logrus.Infof("Listening on %s", listen)
+
+	return http.ListenAndServe(listen, router)
 }
