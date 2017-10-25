@@ -245,8 +245,10 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 			Links:   map[string]string{},
 		},
 	}
-	sl.Actions["update"] = apiContext.UrlBuilder.ReferenceLink(sl.Resource) + "?action=update"
-	sl.Actions["remove"] = apiContext.UrlBuilder.ReferenceLink(sl.Resource) + "?action=remove"
+
+	sl.Resource.Links["update"] = apiContext.UrlBuilder.ReferenceByIdLink(SchemaLogging, sl.Id)
+	sl.Resource.Links["remove"] = apiContext.UrlBuilder.ReferenceByIdLink(SchemaLogging, sl.Id)
+
 	return &sl
 }
 
