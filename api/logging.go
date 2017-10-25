@@ -218,12 +218,16 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 	}
 
 	crd.Target = loggingv1.Target{
-		OutputType:               res.OutputType,
+		TargetType:               res.TargetType,
+		OutputTypeName:           res.OutputTypeName,
 		OutputHost:               res.OutputHost,
 		OutputPort:               res.OutputPort,
 		OutputLogstashPrefix:     res.OutputLogstashPrefix,
 		OutputLogstashDateformat: res.OutputLogstashDateformat,
 		OutputTagKey:             res.OutputTagKey,
+		OutputIncludeTagKey:      res.OutputIncludeTagKey,
+		OutputLogstashFormat:     res.OutputLogstashFormat,
+		OutputFlushInterval:      res.OutputFlushInterval,
 	}
 	return crd
 }
@@ -232,12 +236,16 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 	sl := Logging{
 		Name:                     crd.Name,
 		Namespace:                crd.Namespace,
+		TargetType:               crd.TargetType,
 		OutputHost:               crd.OutputHost,
 		OutputPort:               crd.OutputPort,
 		OutputLogstashPrefix:     crd.OutputLogstashPrefix,
 		OutputLogstashDateformat: crd.OutputLogstashDateformat,
 		OutputTagKey:             crd.OutputTagKey,
-		OutputType:               crd.OutputType,
+		OutputTypeName:           crd.OutputTypeName,
+		OutputLogstashFormat:     crd.OutputLogstashFormat,
+		OutputIncludeTagKey:      crd.OutputIncludeTagKey,
+		OutputFlushInterval:      crd.OutputFlushInterval,
 		Resource: client.Resource{
 			Id:      crd.Name,
 			Type:    SchemaLogging,
@@ -248,7 +256,6 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 
 	sl.Resource.Links["update"] = apiContext.UrlBuilder.ReferenceByIdLink(SchemaLogging, sl.Id)
 	sl.Resource.Links["remove"] = apiContext.UrlBuilder.ReferenceByIdLink(SchemaLogging, sl.Id)
-
 	return &sl
 }
 

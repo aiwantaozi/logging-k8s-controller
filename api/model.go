@@ -19,13 +19,17 @@ type Logging struct {
 	client.Resource
 	Name                     string `json:"name"`
 	Namespace                string `json:"namespace"`
-	OutputType               string `json:"outputType"`
+	TargetType               string `json:"targetType"`
+	OutputTypeName           string `json:"outputTypeName"`
 	OutputHost               string `json:"outputHost"`
 	OutputPort               int    `json:"outputPort"`
 	OutputLogstashPrefix     string `json:"outputLogstashPrefix"`
 	OutputLogstashDateformat string `json:"outputLogstashDateformat"`
 	OutputTagKey             string `json:"outputTagKey"` // (optional; default=fluentd)
 	OutputExtraData          string `json:"outputExtraData"`
+	OutputLogstashFormat     bool   `json:"outputLogstashFormat"`
+	OutputIncludeTagKey      bool   `json:"outputIncludeTagKey"`
+	OutputFlushInterval      int    `json:"outputFlushInterval"`
 }
 
 type ServerApiError struct {
@@ -58,17 +62,25 @@ func loggingSchema(logging *client.Schema) {
 	loggingName.Unique = true
 	logging.ResourceFields["name"] = loggingName
 
-	provider := logging.ResourceFields["namespace"]
-	provider.Create = true
-	provider.Update = true
-	provider.Required = true
-	logging.ResourceFields["namespace"] = provider
+	namespace := logging.ResourceFields["namespace"]
+	namespace.Create = true
+	namespace.Update = true
+	namespace.Required = true
+	logging.ResourceFields["namespace"] = namespace
 
-	outputType := logging.ResourceFields["outputType"]
-	outputType.Create = true
-	outputType.Update = true
-	outputType.Required = true
-	logging.ResourceFields["outputType"] = outputType
+	targetType := logging.ResourceFields["targetType"]
+	targetType.Create = true
+	targetType.Update = true
+	targetType.Required = true
+	targetType.Type = "enum"
+	targetType.Options = []string{"elasticsearch", "splunk"}
+	logging.ResourceFields["targetType"] = targetType
+
+	outputTypeName := logging.ResourceFields["outputTypeName"]
+	outputTypeName.Create = true
+	outputTypeName.Update = true
+	outputTypeName.Required = true
+	logging.ResourceFields["outputTypeName"] = outputTypeName
 
 	outputHost := logging.ResourceFields["outputHost"]
 	outputHost.Create = true
@@ -88,16 +100,28 @@ func loggingSchema(logging *client.Schema) {
 	outputLogstashPrefix.Default = true
 	logging.ResourceFields["outputLogstashPrefix"] = outputLogstashPrefix
 
-	outputLogstashDateformat := logging.ResourceFields["outputLogstashDateformat"]
-	outputLogstashDateformat.Create = true
-	outputLogstashDateformat.Update = true
-	logging.ResourceFields["outputLogstashDateformat"] = outputLogstashDateformat
+	outputFlushInterval := logging.ResourceFields["outputFlushInterval"]
+	outputFlushInterval.Create = true
+	outputFlushInterval.Update = true
+	outputFlushInterval.Default = 1
+	logging.ResourceFields["outputFlushInterval"] = outputFlushInterval
+
+	outputLogstashFormat := logging.ResourceFields["outputLogstashFormat"]
+	outputLogstashFormat.Create = true
+	outputLogstashFormat.Update = true
+	outputLogstashFormat.Default = true
+	logging.ResourceFields["outputLogstashFormat"] = outputLogstashFormat
+
+	outputIncludeTagKey := logging.ResourceFields["outputIncludeTagKey"]
+	outputIncludeTagKey.Create = true
+	outputIncludeTagKey.Update = true
+	outputIncludeTagKey.Default = true
+	logging.ResourceFields["outputIncludeTagKey"] = outputIncludeTagKey
 
 	outputTagKey := logging.ResourceFields["outputTagKey"]
 	outputTagKey.Create = true
 	outputTagKey.Update = true
 	logging.ResourceFields["outputTagKey"] = outputTagKey
-
 }
 
 type Server struct {
