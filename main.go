@@ -21,27 +21,6 @@ func main() {
 	app.Usage = "You need help!"
 	app.Action = startServer
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name: "cattle-url",
-			Usage: fmt.Sprintf(
-				"Specify Cattle endpoint URL",
-			),
-			EnvVar: "CATTLE_URL",
-		},
-		cli.StringFlag{
-			Name: "cattle-access-key",
-			Usage: fmt.Sprintf(
-				"Specify Cattle access key",
-			),
-			EnvVar: "CATTLE_ACCESS_KEY",
-		},
-		cli.StringFlag{
-			Name: "cattle-secret-key",
-			Usage: fmt.Sprintf(
-				"Specify Cattle secret key",
-			),
-			EnvVar: "CATTLE_SECRET_KEY",
-		},
 		cli.BoolFlag{
 			Name: "debug",
 			Usage: fmt.Sprintf(

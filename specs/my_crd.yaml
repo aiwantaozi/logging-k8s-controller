@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   # name must match the spec fields below, and be in the form: <plural>.<group>
   name: loggings.rancher.com
-  namespace: cattle-system
+  namespace: ns-1
 spec:
   # group name to use for REST API: /apis/<group>/<version>
   group: rancher.com

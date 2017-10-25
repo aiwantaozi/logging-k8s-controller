@@ -39,11 +39,12 @@ func (k *K8sClientConfig) New() (cfg *rest.Config, err error) {
 	return rest.InClusterConfig()
 }
 
-func NewLoggingCustomResourceDefinition(group string, labels map[string]string) *extensionsobj.CustomResourceDefinition {
+func NewLoggingCustomResourceDefinition(namespace string, group string, labels map[string]string) *extensionsobj.CustomResourceDefinition {
 	return &extensionsobj.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   loggingv1.LoggingCRDName,
-			Labels: labels,
+			Name:      loggingv1.LoggingCRDName,
+			Labels:    labels,
+			Namespace: namespace,
 		},
 		Spec: extensionsobj.CustomResourceDefinitionSpec{
 			Group:   group,

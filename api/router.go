@@ -43,26 +43,19 @@ func NewRouter(s *Server) *mux.Router {
 	r.Methods("GET").Path("/v6/schemas").Handler(api.SchemasHandler(schemas))
 	r.Methods("GET").Path("/v6/schemas/{id}").Handler(api.SchemaHandler(schemas))
 
-	r.Methods("POST").Path("/v6/envloggings").Handler(f(schemas, s.EnvLoggingsCreate))
-	r.Methods("GET").Path("/v6/envlogging").Handler(f(schemas, s.EnvLoggingsList))
-	r.Methods("GET").Path("/v6/envloggings").Handler(f(schemas, s.EnvLoggingsList))
-	r.Methods("GET").Path("/v6/envloggings/{name}").Handler(f(schemas, s.EnvLoggingsGet))
-	r.Methods("PUT").Path("/v6/envloggings/{name}").Handler(f(schemas, s.EnvLoggingsSet))
-	r.Methods("DELETE").Path("/v6/envloggings/{name}").Handler(f(schemas, s.EnvLoggingsDelete))
+	r.Methods("POST").Path("/v6/loggings").Handler(f(schemas, s.LoggingsCreate))
+	r.Methods("GET").Path("/v6/logging").Handler(f(schemas, s.LoggingsList))
+	r.Methods("GET").Path("/v6/loggings").Handler(f(schemas, s.LoggingsList))
+	r.Methods("GET").Path("/v6/loggings/{name}").Handler(f(schemas, s.LoggingsGet))
+	r.Methods("PUT").Path("/v6/loggings/{name}").Handler(f(schemas, s.LoggingsSet))
+	r.Methods("DELETE").Path("/v6/loggings/{name}").Handler(f(schemas, s.LoggingsDelete))
 
-	r.Methods("POST").Path("/v6/envloggings/{name}/serviceloggings").Handler(f(schemas, s.ServiceLoggingsSet))
-	r.Methods("GET").Path("/v6/envloggings/{name}/servicelogging").Handler(f(schemas, s.ServiceLoggingsList))
-	r.Methods("GET").Path("/v6/envloggings/{name}/serviceloggings").Handler(f(schemas, s.ServiceLoggingsList))
-	r.Methods("GET").Path("/v6/envloggings/{name}/serviceloggings/{name}").Handler(f(schemas, s.ServiceLoggingsGet))
-	r.Methods("PUT").Path("/v6/envloggings/{name}/serviceloggings/{name}").Handler(f(schemas, s.ServiceLoggingsSet))
-	r.Methods("DELETE").Path("/v6/envloggings/{name}/serviceloggings/{name}").Handler(f(schemas, s.ServiceLoggingsDelete))
-
-	serviceLoggingAction := map[string]http.Handler{
-		"update": f(schemas, s.ServiceLoggingsSet),
-		"remove": f(schemas, s.ServiceLoggingsDelete),
+	loggingAction := map[string]http.Handler{
+		"update": f(schemas, s.LoggingsSet),
+		"remove": f(schemas, s.LoggingsDelete),
 	}
-	for name, actions := range serviceLoggingAction {
-		r.Methods(http.MethodPost).Path("/v1/serviceloggings/{name}").Queries("action", name).Handler(actions)
+	for name, actions := range loggingAction {
+		r.Methods(http.MethodPost).Path("/v1/logging/{name}").Queries("action", name).Handler(actions)
 	}
 	return r
 }
