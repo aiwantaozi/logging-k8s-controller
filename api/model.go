@@ -1,7 +1,7 @@
 package api
 
 import (
-	logging "github.com/aiwantaozi/infra-logging/client/logging"
+	logging "github.com/aiwantaozi/infra-logging-client/logging"
 	"github.com/pkg/errors"
 	"github.com/rancher/go-rancher/client"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"

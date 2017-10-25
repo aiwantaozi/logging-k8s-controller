@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	loggingv1 "github.com/aiwantaozi/infra-logging/client/logging/v1"
+	loggingv1 "github.com/aiwantaozi/infra-logging-client/logging/v1"
 	"github.com/pkg/errors"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

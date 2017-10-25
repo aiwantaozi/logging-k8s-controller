@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	loggingv1 "github.com/aiwantaozi/infra-logging/client/logging/v1"
+	loggingv1 "github.com/aiwantaozi/infra-logging-client/logging/v1"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/rancher/go-rancher/api"

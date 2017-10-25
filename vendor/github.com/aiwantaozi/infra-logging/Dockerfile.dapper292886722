@@ -1,2 +1,0 @@
-FROM infra-logging:master
-COPY . /go/src/github.com/aiwantaozi/infra-logging/

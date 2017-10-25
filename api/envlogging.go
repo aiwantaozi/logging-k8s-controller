@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
-	loggingv1 "github.com/aiwantaozi/infra-logging/client/logging/v1"
+	loggingv1 "github.com/aiwantaozi/infra-logging-client/logging/v1"
 	"github.com/aiwantaozi/logging-k8s-controller/k8sutils"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -37,11 +37,11 @@ func (s *Server) EnvLoggingsCreate(w http.ResponseWriter, req *http.Request) err
 	var action string
 	if len(lgobjs.Items) == 0 {
 		action = "create"
-		lgobj, _ := toCRDEnvLogging([]EnvLogging{sl}, nil)
+		lgobj := toCRDEnvLogging([]EnvLogging{sl}, nil)
 		_, err = s.mclient.LoggingV1().Loggings(loggingv1.Namespace).Create(lgobj)
 	} else {
 		action = "update"
-		lgobj, _ := toCRDEnvLogging([]EnvLogging{sl}, &lgobjs.Items[0])
+		lgobj := toCRDEnvLogging([]EnvLogging{sl}, &lgobjs.Items[0])
 		_, err = s.mclient.LoggingV1().Loggings(loggingv1.Namespace).Update(lgobj)
 	}
 
@@ -155,7 +155,7 @@ func (s *Server) setEnvLogging(sl EnvLogging) (*EnvLogging, error) {
 		return nil, errors.New("could not find logging object")
 	}
 
-	lgobj, _ := toCRDEnvLogging([]EnvLogging{sl}, &logobjs.Items[0])
+	lgobj := toCRDEnvLogging([]EnvLogging{sl}, &logobjs.Items[0])
 	logrus.Info("here2 %v", lgobj)
 	_, err = s.mclient.LoggingV1().Loggings(loggingv1.Namespace).Update(lgobj)
 	if err != nil {
@@ -190,9 +190,8 @@ func (s *Server) deleteEnvLogging(name string, env string) error {
 	return nil
 }
 
-func toCRDEnvLogging(res []EnvLogging, crd *loggingv1.Logging) (*loggingv1.Logging, bool) {
+func toCRDEnvLogging(res []EnvLogging, crd *loggingv1.Logging) *loggingv1.Logging {
 	isExist := true
-	// isServiceExist := false
 	isTargetExist := false
 	if crd == nil {
 		isExist = false
@@ -242,7 +241,7 @@ func toCRDEnvLogging(res []EnvLogging, crd *loggingv1.Logging) (*loggingv1.Loggi
 		}
 	}
 	crd.Spec.Targets = append(newTargets, ntg)
-	return crd, isExist
+	return crd
 }
 
 func toResEnvLogging(apiContext *api.ApiContext, crd loggingv1.Logging) (res []*EnvLogging) {
