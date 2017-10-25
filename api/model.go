@@ -115,8 +115,9 @@ func loggingSchema(logging *client.Schema) {
 	outputLogstashDateformat := logging.ResourceFields["outputLogstashDateformat"]
 	outputLogstashDateformat.Create = true
 	outputLogstashDateformat.Update = true
-	targetType.Type = "enum"
-	targetType.Options = []string{"%Y.%m.%d", "%Y.%m.", "%Y."}
+	outputLogstashDateformat.Required = true
+	outputLogstashDateformat.Type = "enum"
+	outputLogstashDateformat.Options = []string{"%Y.%m.%d", "%Y.%m.", "%Y."}
 	logging.ResourceFields["outputLogstashDateformat"] = outputLogstashDateformat
 
 	outputIncludeTagKey := logging.ResourceFields["outputIncludeTagKey"]
