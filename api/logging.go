@@ -163,7 +163,7 @@ func (s *Server) listLogging(apiContext *api.ApiContext, namespace string) ([]*L
 	var res []*Logging
 	for _, v := range logcrdobj.Items {
 		r := toResLogging(apiContext, v)
-		res = append(res, &v)
+		res = append(res, r)
 	}
 	// res := toResLogging(apiContext, logcrdobj.Items[0])
 	return res, nil
