@@ -210,7 +210,7 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 	if crd == nil {
 		crd = &loggingv1.Logging{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      loggingv1.LoggingName,
+				Name:      res.Name,
 				Labels:    loggingv1.LabelMaps,
 				Namespace: res.Namespace,
 			},
