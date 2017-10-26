@@ -14,6 +14,10 @@ import (
 
 var VERSION = "v0.0.0-dev"
 
+/* Todo
+1. field validate like host ip could access
+*/
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "logging-k8s-controller"
