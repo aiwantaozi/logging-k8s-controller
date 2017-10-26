@@ -43,6 +43,7 @@ func NewRouter(s *Server) *mux.Router {
 	r.Methods("GET").Path("/v6/schemas").Handler(api.SchemasHandler(schemas))
 	r.Methods("GET").Path("/v6/schemas/{id}").Handler(api.SchemaHandler(schemas))
 
+	r.Methods("POST").Path("/v6/logging").Handler(f(schemas, s.LoggingsCreate))
 	r.Methods("POST").Path("/v6/loggings").Handler(f(schemas, s.LoggingsCreate))
 	r.Methods("GET").Path("/v6/logging").Handler(f(schemas, s.LoggingsList))
 	r.Methods("GET").Path("/v6/loggings").Handler(f(schemas, s.LoggingsList))
