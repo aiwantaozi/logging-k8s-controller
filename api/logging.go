@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -27,9 +28,6 @@ func (s *Server) LoggingsCreate(w http.ResponseWriter, req *http.Request) error 
 	namespace := sl.Namespace
 	//create if crd not exist
 	runobj, pErr := s.mclient.LoggingV1().Loggings(namespace).List(metav1.ListOptions{})
-	logrus.Infof("%v", runobj)
-	logrus.Infof("%v", runobj.GetObjectKind().GroupVersionKind())
-	logrus.Infof("%v", runobj.GetObjectKind().GroupVersionKind().Empty())
 	if pErr != nil {
 		// If Logging objects are already registered, we
 		// won't attempt to do so again.
@@ -88,14 +86,14 @@ func (s *Server) LoggingsList(w http.ResponseWriter, req *http.Request) error {
 func (s *Server) LoggingsGet(w http.ResponseWriter, req *http.Request) error {
 	apiContext := api.GetApiContext(req)
 
-	name := mux.Vars(req)["name"]
+	id := mux.Vars(req)["id"]
 	var namespace string
 	vals := req.URL.Query() // Returns a url.Values, which is a map[string][]string
 	if nsarr, ok := vals["namespace"]; ok {
 		namespace = nsarr[0]
 	}
 
-	sl, err := s.getLogging(apiContext, namespace, name)
+	sl, err := s.getLogging(apiContext, namespace, id)
 	if err != nil {
 		return errors.Wrap(err, "fail to get service logging")
 	}
@@ -136,14 +134,14 @@ func (s *Server) LoggingsDelete(w http.ResponseWriter, req *http.Request) error 
 	return nil
 }
 
-func (s *Server) getLogging(apiContext *api.ApiContext, namespace string, name string) (res *Logging, err error) {
+func (s *Server) getLogging(apiContext *api.ApiContext, namespace string, id string) (res *Logging, err error) {
 	reslist, err := s.listLogging(apiContext, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, v := range reslist {
-		if v.Name == name {
+		if v.Resource.Id == id {
 			return v, nil
 		}
 	}
@@ -188,7 +186,7 @@ func (s *Server) setLogging(sl Logging) (*Logging, error) {
 	return &sl, nil
 }
 
-func (s *Server) deleteLogging(name string, namespace string) error {
+func (s *Server) deleteLogging(id string, namespace string) error {
 	runobj, err := s.mclient.LoggingV1().Loggings(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "fail to read settings")
@@ -198,7 +196,7 @@ func (s *Server) deleteLogging(name string, namespace string) error {
 		return nil
 	}
 
-	err = s.mclient.LoggingV1().Loggings(namespace).Delete(name, &metav1.DeleteOptions{})
+	err = s.mclient.LoggingV1().Loggings(namespace).Delete(id, &metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "delete service logging fail")
 	}
@@ -210,7 +208,7 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 	if crd == nil {
 		crd = &loggingv1.Logging{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      res.Name,
+				Name:      fmt.Sprintf("%s-%s", res.Name, res.Namespace),
 				Labels:    loggingv1.LabelMaps,
 				Namespace: res.Namespace,
 			},
@@ -247,7 +245,7 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 		OutputIncludeTagKey:      crd.OutputIncludeTagKey,
 		OutputFlushInterval:      crd.OutputFlushInterval,
 		Resource: client.Resource{
-			Id:      crd.Name,
+			Id:      crd.Name + crd.Namespace,
 			Type:    SchemaLogging,
 			Actions: map[string]string{},
 			Links:   map[string]string{},
