@@ -74,7 +74,6 @@ func loggingSchema(logging *client.Schema) {
 	outputTypeName := logging.ResourceFields["outputTypeName"]
 	outputTypeName.Create = true
 	outputTypeName.Update = true
-	outputTypeName.Required = true
 	logging.ResourceFields["outputTypeName"] = outputTypeName
 
 	outputHost := logging.ResourceFields["outputHost"]
@@ -87,11 +86,13 @@ func loggingSchema(logging *client.Schema) {
 	outputPort.Create = true
 	outputPort.Update = true
 	outputPort.Required = true
+	outputPort.Default = 9200
 	logging.ResourceFields["outputPort"] = outputPort
 
 	outputLogstashPrefix := logging.ResourceFields["outputLogstashPrefix"]
 	outputLogstashPrefix.Create = true
 	outputLogstashPrefix.Update = true
+	outputLogstashPrefix.Default = "logstash"
 	logging.ResourceFields["outputLogstashPrefix"] = outputLogstashPrefix
 
 	outputFlushInterval := logging.ResourceFields["outputFlushInterval"]
