@@ -152,7 +152,8 @@ func (s *Server) listLogging(apiContext *api.ApiContext, namespace string) ([]*L
 	logres := []*Logging{}
 	runobj, err := s.mclient.LoggingV1().Loggings(namespace).List(metav1.ListOptions{})
 	if err != nil {
-		return logres, errors.Wrap(err, "fail to read settings")
+		logrus.Errorf("fail to read logging, details: %v", err)
+		return logres, nil
 	}
 	logcrdobj := runobj.(*loggingv1.LoggingList)
 	if logcrdobj == nil || len(logcrdobj.Items) == 0 {

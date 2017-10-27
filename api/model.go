@@ -74,6 +74,7 @@ func loggingSchema(logging *client.Schema) {
 	outputTypeName := logging.ResourceFields["outputTypeName"]
 	outputTypeName.Create = true
 	outputTypeName.Update = true
+	outputTypeName.Default = "access_log"
 	logging.ResourceFields["outputTypeName"] = outputTypeName
 
 	outputHost := logging.ResourceFields["outputHost"]
