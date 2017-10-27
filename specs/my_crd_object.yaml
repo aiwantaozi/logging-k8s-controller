@@ -8,5 +8,5 @@ target:
   output_host: 192.168.33.176
   output_port: 9200
   output_logstash_prefix: "logstash"
-  output_logstash_dateformat: '%Y-%m-%d %H:%M:%S'
+  output_logstash_dateformat: '%Y.%m.%d'
   output_tag_key: "mytag3"

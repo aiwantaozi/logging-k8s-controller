@@ -7,6 +7,8 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	utils "github.com/aiwantaozi/logging-k8s-controller/utils"
 )
 
 const (
@@ -90,7 +92,6 @@ func loggingSchema(logging *client.Schema) {
 	outputLogstashPrefix := logging.ResourceFields["outputLogstashPrefix"]
 	outputLogstashPrefix.Create = true
 	outputLogstashPrefix.Update = true
-	outputLogstashPrefix.Default = true
 	logging.ResourceFields["outputLogstashPrefix"] = outputLogstashPrefix
 
 	outputFlushInterval := logging.ResourceFields["outputFlushInterval"]
@@ -110,7 +111,7 @@ func loggingSchema(logging *client.Schema) {
 	outputLogstashDateformat.Update = true
 	outputLogstashDateformat.Required = true
 	outputLogstashDateformat.Type = "enum"
-	outputLogstashDateformat.Options = []string{"%Y.%m.%d", "%Y.%m.", "%Y."}
+	outputLogstashDateformat.Options = utils.GetShowDateformat()
 	logging.ResourceFields["outputLogstashDateformat"] = outputLogstashDateformat
 
 	outputIncludeTagKey := logging.ResourceFields["outputIncludeTagKey"]
