@@ -2,12 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
 	loggingv1 "github.com/aiwantaozi/infra-logging-client/logging/v1"
 	"github.com/aiwantaozi/logging-k8s-controller/k8sutils"
+	"github.com/aiwantaozi/logging-k8s-controller/utils"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/rancher/go-rancher/api"
@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (s *Server) LoggingsCreate(w http.ResponseWriter, req *http.Request) error {
+func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
 	var sl Logging
 	apiContext := api.GetApiContext(req)
 	decoder := json.NewDecoder(req.Body)
@@ -47,7 +47,6 @@ func (s *Server) LoggingsCreate(w http.ResponseWriter, req *http.Request) error 
 		lgobj := toCRDLogging(sl, &lgobjs.Items[0])
 		_, err = s.mclient.LoggingV1().Loggings(namespace).Update(lgobj)
 	}
-
 	if err != nil {
 		return errors.Wrapf(err, "%s crd object fail", action)
 	}
@@ -56,7 +55,7 @@ func (s *Server) LoggingsCreate(w http.ResponseWriter, req *http.Request) error 
 	return nil
 }
 
-func (s *Server) LoggingsList(w http.ResponseWriter, req *http.Request) error {
+func (s *Server) ListLoggings(w http.ResponseWriter, req *http.Request) error {
 	apiContext := api.GetApiContext(req)
 
 	var namespace string
@@ -83,7 +82,7 @@ func (s *Server) LoggingsList(w http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
-func (s *Server) LoggingsGet(w http.ResponseWriter, req *http.Request) error {
+func (s *Server) GetLogging(w http.ResponseWriter, req *http.Request) error {
 	apiContext := api.GetApiContext(req)
 
 	id := mux.Vars(req)["id"]
@@ -101,7 +100,7 @@ func (s *Server) LoggingsGet(w http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
-func (s *Server) LoggingsSet(w http.ResponseWriter, req *http.Request) error {
+func (s *Server) SetLogging(w http.ResponseWriter, req *http.Request) error {
 	var sl Logging
 	apiContext := api.GetApiContext(req)
 	decoder := json.NewDecoder(req.Body)
@@ -118,7 +117,7 @@ func (s *Server) LoggingsSet(w http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
-func (s *Server) LoggingsDelete(w http.ResponseWriter, req *http.Request) error {
+func (s *Server) DeleteLogging(w http.ResponseWriter, req *http.Request) error {
 	var sl Logging
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&sl)
@@ -126,7 +125,7 @@ func (s *Server) LoggingsDelete(w http.ResponseWriter, req *http.Request) error 
 		return errors.Wrap(err, "decode service logging fail")
 	}
 
-	name := mux.Vars(req)["name"]
+	name := mux.Vars(req)["id"]
 	err = s.deleteLogging(name, sl.Namespace)
 	if err != nil {
 		return errors.Wrapf(err, "fail to get service logging %s", name)
@@ -135,6 +134,7 @@ func (s *Server) LoggingsDelete(w http.ResponseWriter, req *http.Request) error 
 }
 
 func (s *Server) getLogging(apiContext *api.ApiContext, namespace string, id string) (res *Logging, err error) {
+	//use list in case of get could not send empty namespace as all namespace
 	reslist, err := s.listLogging(apiContext, namespace)
 	if err != nil {
 		return nil, err
@@ -163,21 +163,16 @@ func (s *Server) listLogging(apiContext *api.ApiContext, namespace string) ([]*L
 		r := toResLogging(apiContext, v)
 		res = append(res, r)
 	}
-	// res := toResLogging(apiContext, logcrdobj.Items[0])
 	return res, nil
 }
 
 func (s *Server) setLogging(sl Logging) (*Logging, error) {
-	runobj, err := s.mclient.LoggingV1().Loggings(sl.Namespace).List(metav1.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "fail to read loggings")
-	}
-	logobjs := runobj.(*loggingv1.LoggingList)
-	if logobjs == nil || len(logobjs.Items) == 0 {
-		return nil, errors.New("could not find logging object")
+	logging, err := s.mclient.LoggingV1().Loggings(sl.Namespace).Get(sl.Id, metav1.GetOptions{})
+	if err != nil || logging == nil {
+		return nil, errors.Wrap(err, "fail to get logging")
 	}
 
-	lgobj := toCRDLogging(sl, &logobjs.Items[0])
+	lgobj := toCRDLogging(sl, logging)
 	_, err = s.mclient.LoggingV1().Loggings(sl.Namespace).Update(lgobj)
 	if err != nil {
 		return nil, errors.Wrap(err, "update service logging fail")
@@ -187,13 +182,9 @@ func (s *Server) setLogging(sl Logging) (*Logging, error) {
 }
 
 func (s *Server) deleteLogging(id string, namespace string) error {
-	runobj, err := s.mclient.LoggingV1().Loggings(namespace).List(metav1.ListOptions{})
-	if err != nil {
-		return errors.Wrap(err, "fail to read settings")
-	}
-	logobjs := runobj.(*loggingv1.LoggingList)
-	if logobjs == nil || len(logobjs.Items) == 0 {
-		return nil
+	logging, err := s.mclient.LoggingV1().Loggings(namespace).Get(id, metav1.GetOptions{})
+	if err != nil || logging == nil {
+		return errors.Wrap(err, "fail to read get logging")
 	}
 
 	err = s.mclient.LoggingV1().Loggings(namespace).Delete(id, &metav1.DeleteOptions{})
@@ -208,7 +199,7 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 	if crd == nil {
 		crd = &loggingv1.Logging{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("%s-%s", res.Name, res.Namespace),
+				Name:      utils.GenerateUUID(),
 				Labels:    loggingv1.LabelMaps,
 				Namespace: res.Namespace,
 			},
@@ -232,7 +223,6 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 
 func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 	sl := Logging{
-		Name:                     crd.Name,
 		Namespace:                crd.Namespace,
 		TargetType:               crd.TargetType,
 		OutputHost:               crd.OutputHost,
@@ -245,7 +235,7 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 		OutputIncludeTagKey:      crd.OutputIncludeTagKey,
 		OutputFlushInterval:      crd.OutputFlushInterval,
 		Resource: client.Resource{
-			Id:      crd.Name + crd.Namespace,
+			Id:      crd.Name,
 			Type:    SchemaLogging,
 			Actions: map[string]string{},
 			Links:   map[string]string{},

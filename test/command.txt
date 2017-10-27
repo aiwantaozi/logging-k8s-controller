@@ -1,7 +1,7 @@
 curl -X POST \
 -H 'Accept: application/json' \
 -H 'Content-Type: application/json' \
--d '{"namespace":"ns-1", "name":"rancherlogging", "outputHost":"192.168.33.176", "outputLogstashDateformat":"%Y-%m-%d %H:%M:%S", "outputLogstashPrefix":"logstash222", "outputPort":0, "outputTagKey":"mytag123", "outputType":"elasticsearch"}' \
+-d '{"namespace":"ns-1", "name":"rancherlogging", "outputHost":"192.168.33.176", "outputLogstashDateformat":"%Y-%m-%d %H:%M:%S", "outputLogstashPrefix":"logstash", "outputPort":0, "outputTagKey":"mytag123", "outputType":"elasticsearch"}' \
 'http://localhost:8090/v6/loggings'
 
 

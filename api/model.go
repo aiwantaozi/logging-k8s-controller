@@ -17,7 +17,6 @@ const (
 
 type Logging struct {
 	client.Resource
-	Name                     string `json:"name"`
 	Namespace                string `json:"namespace"`
 	TargetType               string `json:"targetType"`
 	OutputTypeName           string `json:"outputTypeName"`
@@ -57,14 +56,8 @@ func loggingSchema(logging *client.Schema) {
 	logging.ResourceMethods = []string{"GET", "PUT", "DELETE"}
 	logging.IncludeableLinks = []string{SchemaLoggingPluge}
 
-	loggingName := logging.ResourceFields["name"]
-	loggingName.Required = true
-	loggingName.Unique = true
-	logging.ResourceFields["name"] = loggingName
-
 	namespace := logging.ResourceFields["namespace"]
 	namespace.Create = true
-	namespace.Update = true
 	namespace.Required = true
 	logging.ResourceFields["namespace"] = namespace
 
