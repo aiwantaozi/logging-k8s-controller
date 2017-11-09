@@ -11,6 +11,7 @@ import (
 type LoggingV1Interface interface {
 	RESTClient() rest.Interface
 	LoggingsGetter
+	LoggingAuthsGetter
 }
 
 type LoggingV1Client struct {
@@ -20,6 +21,10 @@ type LoggingV1Client struct {
 
 func (c *LoggingV1Client) Loggings(namespace string) LoggingInterface {
 	return newLoggings(c.restClient, c.dynamicClient, namespace)
+}
+
+func (c *LoggingV1Client) LoggingAuths(namespace string) LoggingAuthInterface {
+	return newLoggingAuths(c.restClient, c.dynamicClient, namespace)
 }
 
 func (c *LoggingV1Client) RESTClient() rest.Interface {

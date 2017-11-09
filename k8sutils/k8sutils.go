@@ -58,19 +58,20 @@ func NewLoggingCustomResourceDefinition(namespace string, group string, labels m
 	}
 }
 
-func NewLoggingHostCustomResourceDefinition(group string, labels map[string]string) *extensionsobj.CustomResourceDefinition {
+func NewLoggingAuthCustomResourceDefinition(namespace string, group string, labels map[string]string) *extensionsobj.CustomResourceDefinition {
 	return &extensionsobj.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   loggingv1.LoggingName + "." + group,
-			Labels: labels,
+			Name:      loggingv1.LoggingAuthCRDName,
+			Labels:    labels,
+			Namespace: namespace,
 		},
 		Spec: extensionsobj.CustomResourceDefinitionSpec{
 			Group:   group,
 			Version: loggingv1.Version,
 			Scope:   extensionsobj.NamespaceScoped,
 			Names: extensionsobj.CustomResourceDefinitionNames{
-				Plural: loggingv1.LoggingResourcePlural,
-				Kind:   loggingv1.LoggingsKind,
+				Plural: loggingv1.LoggingAuthResourcePlural,
+				Kind:   loggingv1.LoggingAuthsKind,
 			},
 		},
 	}

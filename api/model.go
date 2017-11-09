@@ -12,28 +12,73 @@ import (
 )
 
 const (
-	DefaultEnviroment  = "default"
-	SchemaLogging      = "logging"
-	SchemaLoggingPluge = "loggings"
+	DefaultEnviroment      = "default"
+	SchemaLogging          = "logging"
+	SchemaLoggingPluge     = "loggings"
+	SchemaLoggingAuth      = "loggingAuth"
+	SchemaLoggingAuthPluge = "loggingAuths"
+)
+
+const (
+	AwsElasticsearch = "aws-elasticsearch"
+	Elasticsearch    = "elasticsearch"
+	Splunk           = "splunk"
+)
+
+// target type
+var (
+	TargetPluginMapping = map[string]string{
+		AwsElasticsearch: "aws-elasticsearch-service",
+		Elasticsearch:    "elasticsearch",
+		Splunk:           "splunk-http-eventcollector",
+	}
+	TargetLabelMapping = map[string]string{
+		AwsElasticsearch: "endpoint",
+	}
 )
 
 type Logging struct {
 	client.Resource
-	Namespace                string `json:"namespace"`
-	TargetType               string `json:"targetType"`
-	OutputTypeName           string `json:"outputTypeName"`
-	OutputHost               string `json:"outputHost"`
-	OutputPort               int    `json:"outputPort"`
-	OutputLogstashPrefix     string `json:"outputLogstashPrefix"`
-	OutputLogstashDateformat string `json:"outputLogstashDateformat"`
-	OutputTagKey             string `json:"outputTagKey"` // (optional; default=fluentd)
-	OutputExtraData          string `json:"outputExtraData"`
-	OutputLogstashFormat     bool   `json:"outputLogstashFormat"`
-	OutputIncludeTagKey      bool   `json:"outputIncludeTagKey"`
-	OutputFlushInterval      int    `json:"outputFlushInterval"`
+	Namespace           string            `json:"namespace"`
+	TargetType          string            `json:"targetType"`
+	OutputHost          string            `json:"outputHost"`
+	OutputPort          int               `json:"outputPort"`
+	OutputFlushInterval int               `json:"outputFlushInterval"`
+	OutputRecords       map[string]string `json:"outputRecords"`
+	//elasticsearch
+	ESLogstashPrefix     string `json:"esLogstashPrefix"`
+	ESLogstashDateformat string `json:"esLogstashDateformat"`
+	ESTagKey             string `json:"esTagKey"` // (optional; default=fluentd)
+	ESLogstashFormat     bool   `json:"esLogstashFormat"`
+	ESIncludeTagKey      bool   `json:"esIncludeTagKey"`
+	ESAuthUser           string `json:"esAuthUser"`     //secret
+	ESAuthPassword       string `json:"esAuthPassword"` //secret
+	//splunk
+	SplunkProtocol   string `json:"splunkProtocol"`
+	SplunkSource     string `json:"splunkSource"`
+	SplunkSourceType string `json:"splunkSourceType"`
+	SplunkTimeFormat string `json:"splunkTimeFormat"`
+	SplunkToken      string `json:"splunkToken"` //secret
 }
 
-type ServerApiError struct {
+type LoggingAuth struct {
+	client.Resource
+	EnableNamespaceLogging bool `json:"enableNamespaceLogging"`
+}
+
+type Secret struct {
+	Type  string     `json:"type"`
+	Label string     `json:"label"`
+	Data  SecretData `json:"data"`
+}
+
+type SecretData struct {
+	ESAuthUser     string `json:"user"`     //secret
+	ESAuthPassword string `json:"password"` //secret
+	SplunkToken    string `json:"token"`    //secret
+}
+
+type ServerAPIError struct {
 	client.Resource
 	Status   int    `json:"status"`
 	Code     string `json:"code"`
@@ -47,9 +92,10 @@ func NewSchema() *client.Schemas {
 
 	schemas.AddType("apiVersion", client.Resource{})
 	schemas.AddType("schema", client.Schema{})
-	schemas.AddType("error", ServerApiError{})
+	schemas.AddType("error", ServerAPIError{})
 
 	loggingSchema(schemas.AddType(SchemaLogging, Logging{}))
+	loggingAuthSchema(schemas.AddType(SchemaLoggingAuth, LoggingAuth{}))
 	return schemas
 }
 
@@ -68,14 +114,8 @@ func loggingSchema(logging *client.Schema) {
 	targetType.Update = true
 	targetType.Required = true
 	targetType.Type = "enum"
-	targetType.Options = []string{"elasticsearch", "splunk"}
+	targetType.Options = []string{Elasticsearch, Splunk, AwsElasticsearch}
 	logging.ResourceFields["targetType"] = targetType
-
-	outputTypeName := logging.ResourceFields["outputTypeName"]
-	outputTypeName.Create = true
-	outputTypeName.Update = true
-	outputTypeName.Default = "access_log"
-	logging.ResourceFields["outputTypeName"] = outputTypeName
 
 	outputHost := logging.ResourceFields["outputHost"]
 	outputHost.Create = true
@@ -87,14 +127,13 @@ func loggingSchema(logging *client.Schema) {
 	outputPort.Create = true
 	outputPort.Update = true
 	outputPort.Required = true
-	outputPort.Default = 9200
 	logging.ResourceFields["outputPort"] = outputPort
 
-	outputLogstashPrefix := logging.ResourceFields["outputLogstashPrefix"]
-	outputLogstashPrefix.Create = true
-	outputLogstashPrefix.Update = true
-	outputLogstashPrefix.Default = "logstash"
-	logging.ResourceFields["outputLogstashPrefix"] = outputLogstashPrefix
+	esLogstashPrefix := logging.ResourceFields["esLogstashPrefix"]
+	esLogstashPrefix.Create = true
+	esLogstashPrefix.Update = true
+	esLogstashPrefix.Default = "logstash"
+	logging.ResourceFields["esLogstashPrefix"] = esLogstashPrefix
 
 	outputFlushInterval := logging.ResourceFields["outputFlushInterval"]
 	outputFlushInterval.Create = true
@@ -102,30 +141,63 @@ func loggingSchema(logging *client.Schema) {
 	outputFlushInterval.Default = 1
 	logging.ResourceFields["outputFlushInterval"] = outputFlushInterval
 
-	outputLogstashFormat := logging.ResourceFields["outputLogstashFormat"]
-	outputLogstashFormat.Create = true
-	outputLogstashFormat.Update = true
-	outputLogstashFormat.Default = true
-	logging.ResourceFields["outputLogstashFormat"] = outputLogstashFormat
+	// elasticsearch
+	esLogstashFormat := logging.ResourceFields["esLogstashFormat"]
+	esLogstashFormat.Create = true
+	esLogstashFormat.Update = true
+	esLogstashFormat.Default = true
+	logging.ResourceFields["esLogstashFormat"] = esLogstashFormat
 
-	outputLogstashDateformat := logging.ResourceFields["outputLogstashDateformat"]
-	outputLogstashDateformat.Create = true
-	outputLogstashDateformat.Update = true
-	outputLogstashDateformat.Required = true
-	outputLogstashDateformat.Type = "enum"
-	outputLogstashDateformat.Options = utils.GetShowDateformat()
-	logging.ResourceFields["outputLogstashDateformat"] = outputLogstashDateformat
+	esLogstashDateformat := logging.ResourceFields["esLogstashDateformat"]
+	esLogstashDateformat.Create = true
+	esLogstashDateformat.Update = true
+	esLogstashDateformat.Required = true
+	esLogstashDateformat.Type = "enum"
+	esLogstashDateformat.Options = utils.GetShowDateformat()
+	logging.ResourceFields["esLogstashDateformat"] = esLogstashDateformat
 
-	outputIncludeTagKey := logging.ResourceFields["outputIncludeTagKey"]
-	outputIncludeTagKey.Create = true
-	outputIncludeTagKey.Update = true
-	outputIncludeTagKey.Default = true
-	logging.ResourceFields["outputIncludeTagKey"] = outputIncludeTagKey
+	esIncludeTagKey := logging.ResourceFields["esIncludeTagKey"]
+	esIncludeTagKey.Create = true
+	esIncludeTagKey.Update = true
+	esIncludeTagKey.Default = true
+	logging.ResourceFields["esIncludeTagKey"] = esIncludeTagKey
 
-	outputTagKey := logging.ResourceFields["outputTagKey"]
-	outputTagKey.Create = true
-	outputTagKey.Update = true
-	logging.ResourceFields["outputTagKey"] = outputTagKey
+	esTagKey := logging.ResourceFields["esTagKey"]
+	esTagKey.Create = true
+	esTagKey.Update = true
+	logging.ResourceFields["esTagKey"] = esTagKey
+
+	//splunk
+	splunkProtocol := logging.ResourceFields["splunkProtocol"]
+	splunkProtocol.Create = true
+	splunkProtocol.Update = true
+	splunkProtocol.Type = "enum"
+	splunkProtocol.Options = []string{"https", "http"}
+	logging.ResourceFields["splunkProtocol"] = splunkProtocol
+
+	splunkToken := logging.ResourceFields["splunkToken"]
+	splunkToken.Create = true
+	splunkToken.Update = true
+	splunkToken.Required = true
+	logging.ResourceFields["splunkToken"] = splunkToken
+
+	SplunkTimeFormat := logging.ResourceFields["SplunkTimeFormat"]
+	SplunkTimeFormat.Create = true
+	SplunkTimeFormat.Update = true
+	SplunkTimeFormat.Type = "enum"
+	SplunkTimeFormat.Options = []string{"none", "unixtime", "localtime"}
+	logging.ResourceFields["SplunkTimeFormat"] = SplunkTimeFormat
+}
+
+func loggingAuthSchema(loggingAuth *client.Schema) {
+	loggingAuth.CollectionMethods = []string{"GET"}
+	loggingAuth.ResourceMethods = []string{"PUT"}
+	loggingAuth.IncludeableLinks = []string{SchemaLoggingAuthPluge}
+
+	enableNamespaceLogging := loggingAuth.ResourceFields["enableNamespaceLogging"]
+	enableNamespaceLogging.Create = true
+	enableNamespaceLogging.Required = true
+	loggingAuth.ResourceFields["enableNamespaceLogging"] = enableNamespaceLogging
 }
 
 type Server struct {

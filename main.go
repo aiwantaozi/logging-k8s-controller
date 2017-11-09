@@ -41,7 +41,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "k8s-config-path",
 			Usage: "k8s config path",
-			Value: "/Users/fengcaixiao/.kube/config",
+			// Value: "/Users/fengcaixiao/.kube/config",
 		},
 	}
 	app.Run(os.Args)

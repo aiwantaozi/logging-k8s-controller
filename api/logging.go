@@ -14,6 +14,8 @@ import (
 	"github.com/rancher/go-rancher/client"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	corev1 "k8s.io/client-go/pkg/api/v1"
 )
 
 func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
@@ -22,10 +24,31 @@ func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&sl)
 	if err != nil {
-		return errors.Wrap(err, "decode service logging fail")
+		return errors.Wrap(err, "decode logging fail")
 	}
 
+	var action string
 	namespace := sl.Namespace
+	// create or update secret
+	existSec, err := s.kclient.CoreV1().Secrets(namespace).Get(loggingv1.SecretName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	sec, err := toK8sSecret(sl)
+	if err != nil {
+		return err
+	}
+	if existSec == nil {
+		action = "create"
+		_, err = s.kclient.CoreV1().Secrets(namespace).Create(sec)
+	} else {
+		action = "update"
+		_, err = s.kclient.CoreV1().Secrets(namespace).Update(sec)
+	}
+	if err != nil {
+		return errors.Wrapf(err, "%s secret fail", action)
+	}
+
 	//create if crd not exist
 	runobj, pErr := s.mclient.LoggingV1().Loggings(namespace).List(metav1.ListOptions{})
 	if pErr != nil {
@@ -36,15 +59,17 @@ func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
-	var action string
+	// create or update logging
 	lgobjs := runobj.(*loggingv1.LoggingList)
 	if len(lgobjs.Items) == 0 {
 		action = "create"
 		lgobj := toCRDLogging(sl, nil)
+		lgobj.SecretVersion = existSec.ResourceVersion
 		_, err = s.mclient.LoggingV1().Loggings(namespace).Create(lgobj)
 	} else {
 		action = "update"
 		lgobj := toCRDLogging(sl, &lgobjs.Items[0])
+		lgobj.SecretVersion = existSec.ResourceVersion
 		_, err = s.mclient.LoggingV1().Loggings(namespace).Update(lgobj)
 	}
 	if err != nil {
@@ -62,11 +87,14 @@ func (s *Server) ListLoggings(w http.ResponseWriter, req *http.Request) error {
 	vals := req.URL.Query() // Returns a url.Values, which is a map[string][]string
 	if nsarr, ok := vals["namespace"]; ok {
 		namespace = nsarr[0]
+		if namespace == "" {
+			namespace = corev1.NamespaceAll
+		}
 	}
 
 	res, err := s.listLogging(apiContext, namespace)
 	if err != nil {
-		return errors.Wrap(err, "fail to list logging crd object")
+		return errors.Wrap(err, "list logging fail")
 	}
 	resp := &client.GenericCollection{}
 	resp.ResourceType = "logging"
@@ -94,7 +122,7 @@ func (s *Server) GetLogging(w http.ResponseWriter, req *http.Request) error {
 
 	sl, err := s.getLogging(apiContext, namespace, id)
 	if err != nil {
-		return errors.Wrap(err, "fail to get service logging")
+		return errors.Wrap(err, "get logging fail")
 	}
 	apiContext.Write(sl)
 	return nil
@@ -106,12 +134,12 @@ func (s *Server) SetLogging(w http.ResponseWriter, req *http.Request) error {
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&sl)
 	if err != nil {
-		return errors.Wrap(err, "decode service logging fail")
+		return errors.Wrap(err, "decode logging fail")
 	}
 
 	_, err = s.setLogging(sl)
 	if err != nil {
-		return errors.Wrap(err, "set env logging success")
+		return errors.Wrap(err, "set logging fail")
 	}
 	apiContext.Write(&sl)
 	return nil
@@ -122,13 +150,13 @@ func (s *Server) DeleteLogging(w http.ResponseWriter, req *http.Request) error {
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&sl)
 	if err != nil {
-		return errors.Wrap(err, "decode service logging fail")
+		return errors.Wrap(err, "decode logging fail")
 	}
 
 	name := mux.Vars(req)["id"]
 	err = s.deleteLogging(name, sl.Namespace)
 	if err != nil {
-		return errors.Wrapf(err, "fail to get service logging %s", name)
+		return errors.Wrapf(err, "delete logging %s fail", name)
 	}
 	return nil
 }
@@ -152,17 +180,34 @@ func (s *Server) listLogging(apiContext *api.ApiContext, namespace string) ([]*L
 	logres := []*Logging{}
 	runobj, err := s.mclient.LoggingV1().Loggings(namespace).List(metav1.ListOptions{})
 	if err != nil {
-		logrus.Errorf("fail to read logging, details: %v", err)
+		logrus.Errorf("list logging fail, details: %v", err)
 		return logres, nil
 	}
 	logcrdobj := runobj.(*loggingv1.LoggingList)
 	if logcrdobj == nil || len(logcrdobj.Items) == 0 {
 		return logres, nil
 	}
+
+	k8sSecs, err := s.kclient.CoreV1().Secrets(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("type", "Opaque").String()})
+	if err != nil {
+		return logres, err
+	}
+
 	var res []*Logging
 	for _, v := range logcrdobj.Items {
-		r := toResLogging(apiContext, v)
-		res = append(res, r)
+		for _, v2 := range k8sSecs.Items {
+			if v.Namespace == v2.Namespace {
+				sec, err := toResSecret(&v2)
+				if err != nil {
+					return logres, err
+				}
+				r := toResLogging(apiContext, v)
+				r.ESAuthUser = sec.Data.ESAuthUser
+				r.ESAuthPassword = sec.Data.ESAuthPassword
+				r.SplunkToken = sec.Data.SplunkToken
+				res = append(res, r)
+			}
+		}
 	}
 	return res, nil
 }
@@ -170,13 +215,23 @@ func (s *Server) listLogging(apiContext *api.ApiContext, namespace string) ([]*L
 func (s *Server) setLogging(sl Logging) (*Logging, error) {
 	logging, err := s.mclient.LoggingV1().Loggings(sl.Namespace).Get(sl.Id, metav1.GetOptions{})
 	if err != nil || logging == nil {
-		return nil, errors.Wrap(err, "fail to get logging")
+		return nil, errors.Wrap(err, "get logging fail")
+	}
+
+	k8sSec, err := toK8sSecret(sl)
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.kclient.CoreV1().Secrets(sl.Namespace).Update(k8sSec)
+	if err != nil {
+		return nil, errors.Wrap(err, "update logging secret fail")
 	}
 
 	lgobj := toCRDLogging(sl, logging)
+	lgobj.SecretVersion = k8sSec.ResourceVersion
 	_, err = s.mclient.LoggingV1().Loggings(sl.Namespace).Update(lgobj)
 	if err != nil {
-		return nil, errors.Wrap(err, "update service logging fail")
+		return nil, errors.Wrap(err, "update logging fail")
 	}
 
 	return &sl, nil
@@ -185,15 +240,15 @@ func (s *Server) setLogging(sl Logging) (*Logging, error) {
 func (s *Server) deleteLogging(id string, namespace string) error {
 	logging, err := s.mclient.LoggingV1().Loggings(namespace).Get(id, metav1.GetOptions{})
 	if err != nil || logging == nil {
-		return errors.Wrap(err, "fail to read get logging")
+		return errors.Wrap(err, "get logging fail")
 	}
 
 	err = s.mclient.LoggingV1().Loggings(namespace).Delete(id, &metav1.DeleteOptions{})
 	if err != nil {
-		return errors.Wrap(err, "delete service logging fail")
+		return errors.Wrap(err, "delete logging fail")
 	}
 
-	return nil
+	return s.kclient.CoreV1().Secrets(namespace).Delete(loggingv1.SecretName, &metav1.DeleteOptions{})
 }
 
 func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
@@ -206,35 +261,44 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 			},
 		}
 	}
-
+	crd.Enable = res.Enable
 	crd.Target = loggingv1.Target{
-		TargetType:               res.TargetType,
-		OutputTypeName:           res.OutputTypeName,
-		OutputHost:               res.OutputHost,
-		OutputPort:               res.OutputPort,
-		OutputLogstashPrefix:     res.OutputLogstashPrefix,
-		OutputLogstashDateformat: utils.ToRealDateformat(res.OutputLogstashDateformat),
-		OutputTagKey:             res.OutputTagKey,
-		OutputIncludeTagKey:      res.OutputIncludeTagKey,
-		OutputLogstashFormat:     res.OutputLogstashFormat,
-		OutputFlushInterval:      res.OutputFlushInterval,
+		TargetType:           res.TargetType,
+		OutputHost:           res.OutputHost,
+		OutputPort:           res.OutputPort,
+		OutputFlushInterval:  res.OutputFlushInterval,
+		OutputRecords:        res.OutputRecords,
+		ESLogstashPrefix:     res.ESLogstashPrefix,
+		ESLogstashDateformat: utils.ToRealDateformat(res.ESLogstashDateformat),
+		ESTagKey:             res.ESTagKey,
+		ESIncludeTagKey:      res.ESIncludeTagKey,
+		ESLogstashFormat:     res.ESLogstashFormat,
+		SplunkProtocol:       res.SplunkProtocol,
+		SplunkSource:         res.SplunkSourceType,
+		SplunkTimeFormat:     res.SplunkTimeFormat,
 	}
+
 	return crd
 }
 
 func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 	sl := Logging{
-		Namespace:                crd.Namespace,
-		TargetType:               crd.TargetType,
-		OutputHost:               crd.OutputHost,
-		OutputPort:               crd.OutputPort,
-		OutputLogstashPrefix:     crd.OutputLogstashPrefix,
-		OutputLogstashDateformat: utils.ToShowDateformat(crd.OutputLogstashDateformat),
-		OutputTagKey:             crd.OutputTagKey,
-		OutputTypeName:           crd.OutputTypeName,
-		OutputLogstashFormat:     crd.OutputLogstashFormat,
-		OutputIncludeTagKey:      crd.OutputIncludeTagKey,
-		OutputFlushInterval:      crd.OutputFlushInterval,
+		Enable:               crd.Enable,
+		Namespace:            crd.Namespace,
+		TargetType:           TargetPluginMapping[crd.TargetType],
+		OutputHost:           crd.OutputHost,
+		OutputPort:           crd.OutputPort,
+		OutputFlushInterval:  crd.OutputFlushInterval,
+		OutputRecords:        crd.OutputRecords,
+		ESLogstashPrefix:     crd.ESLogstashPrefix,
+		ESLogstashDateformat: utils.ToShowDateformat(crd.ESLogstashDateformat),
+		ESTagKey:             crd.ESTagKey,
+		ESLogstashFormat:     crd.ESLogstashFormat,
+		ESIncludeTagKey:      crd.ESIncludeTagKey,
+		SplunkProtocol:       crd.SplunkProtocol,
+		SplunkSource:         crd.SplunkSource,
+		SplunkSourceType:     crd.SplunkSourceType,
+		SplunkTimeFormat:     crd.SplunkTimeFormat,
 		Resource: client.Resource{
 			Id:      crd.Name,
 			Type:    SchemaLogging,
@@ -246,6 +310,41 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 	sl.Resource.Links["update"] = apiContext.UrlBuilder.ReferenceByIdLink(SchemaLogging, sl.Id)
 	sl.Resource.Links["remove"] = apiContext.UrlBuilder.ReferenceByIdLink(SchemaLogging, sl.Id)
 	return &sl
+}
+
+func toK8sSecret(res Logging) (*corev1.Secret, error) {
+	sec := Secret{
+		Type:  res.TargetType,
+		Label: utils.GetTargetLabel(res.TargetType),
+		Data: SecretData{
+			ESAuthUser:     res.ESAuthUser,
+			ESAuthPassword: res.ESAuthPassword,
+			SplunkToken:    res.SplunkToken,
+		},
+	}
+
+	b, err := json.Marshal(sec)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshal secret data fail")
+	}
+	data := utils.EncodeBase64(b)
+	k8sSec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      utils.GenerateUUID(),
+			Labels:    loggingv1.LabelMaps,
+			Namespace: res.Namespace,
+		},
+		Data: map[string][]byte{
+			loggingv1.SecretName: data,
+		},
+	}
+	return k8sSec, nil
+}
+
+func toResSecret(k8sSec *corev1.Secret) (*Secret, error) {
+	var resSec Secret
+	err := json.Unmarshal(k8sSec.Data[loggingv1.SecretName], &resSec)
+	return &resSec, err
 }
 
 func (s *Server) createCRDs(namespace string) error {

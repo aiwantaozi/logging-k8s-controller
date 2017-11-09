@@ -16,7 +16,7 @@ func HandleError(s *client.Schemas, t HandleFuncWithError) http.Handler {
 		if err := t(rw, req); err != nil {
 			rw.WriteHeader(500)
 			logrus.Warnf("HTTP handling error %v", err)
-			e := ServerApiError{
+			e := ServerAPIError{
 				Resource: client.Resource{
 					Type: "error",
 				},
@@ -45,11 +45,16 @@ func NewRouter(s *Server) *mux.Router {
 
 	r.Methods("POST").Path("/v6/logging").Handler(f(schemas, s.CreateLogging))
 	r.Methods("POST").Path("/v6/loggings").Handler(f(schemas, s.CreateLogging))
-	r.Methods("GET").Path("/v6/logging").Handler(f(schemas, s.CreateLogging))
+	r.Methods("GET").Path("/v6/logging").Handler(f(schemas, s.ListLoggings))
 	r.Methods("GET").Path("/v6/loggings").Handler(f(schemas, s.ListLoggings))
 	r.Methods("GET").Path("/v6/loggings/{id}").Handler(f(schemas, s.GetLogging))
 	r.Methods("PUT").Path("/v6/loggings/{id}").Handler(f(schemas, s.SetLogging))
 	r.Methods("DELETE").Path("/v6/loggings/{id}").Handler(f(schemas, s.DeleteLogging))
+
+	r.Methods("GET").Path("/v6/loggingauth").Handler(f(schemas, s.ListLoggingAuths))
+	r.Methods("GET").Path("/v6/loggingauths").Handler(f(schemas, s.ListLoggingAuths))
+	r.Methods("GET").Path("/v6/loggingauths/{id}").Handler(f(schemas, s.GetLoggingAuth))
+	r.Methods("PUT").Path("/v6/loggingauths/{id}").Handler(f(schemas, s.SetLoggingAuth))
 
 	loggingAction := map[string]http.Handler{
 		"update": f(schemas, s.SetLogging),
