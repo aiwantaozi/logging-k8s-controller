@@ -1,9 +1,18 @@
 curl -X POST \
 -H 'Accept: application/json' \
 -H 'Content-Type: application/json' \
--d '{"namespace":"ns-1", "name":"rancherlogging", "outputHost":"192.168.33.176", "esLogstashDateformat":"%Y-%m-%d %H:%M:%S", "esLogstashPrefix":"logstash", "outputPort":0, "esTagKey":"mytag123", "outputType":"elasticsearch"}' \
+-d '{"namespace":"cattle-system", "name":"rancherlogging2", "esHost":"192.168.33.176", "esLogstashDateformat":"%Y-%m-%d %H:%M:%S", "esLogstashPrefix":"logstash", "esPort":0, "outputType":"elasticsearch"}' \
 'http://localhost:8090/v6/loggings'
 
 
+curl -X POST \
+  http://47.52.113.11:30090/v6/loggings \
+  -H 'content-type: application/json' \
+  -d '{"enable": false,"esAuthPassword": "","esAuthUser": "","esHost": "47.52.113.11","esIncludeTagKey": false,"esLogstashDateformat": "YYYY.MM.DD","esLogstashFormat": false,"esLogstashPrefix": "logstash","esPort": 9200,"namespace": "cattle-system","outputFlushInterval": 0,"outputTags": null,"splunkHost": "","splunkPort": 0,"splunkProtocol": "","splunkSource": "","splunkTimeFormat": "","splunkToken": "","targetType": "elasticsearch","type": "logging"}'
+
+curl -X PUT \
+  http://47.52.113.11:30090/v6/loggings/b84oejv3p5k000e7l25g \
+  -H 'content-type: application/json' \
+  -d '{"id": "b84oejv3p5k000e7l25g","enable": true,"esAuthPassword": "","esAuthUser": "aws","esHost": "47.52.113.11","esIncludeTagKey": false,"esLogstashDateformat": "YYYY.MM.DD","esLogstashFormat": false,"esLogstashPrefix": "logstash","esPort": 0,"namespace": "cattle-system","outputFlushInterval": 0,"outputTags": null,"splunkHost": "","splunkPort": 0,"splunkProtocol": "","splunkSource": "","splunkTimeFormat": "","splunkToken": "","targetType": "elasticsearch","type": "logging"}'
 
 curl http://127.0.0.1:8090/v6/loggings/rancherlogging?namespace=ns-1

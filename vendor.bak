@@ -5,7 +5,7 @@ github.com/aiwantaozi/logging-k8s-controller
 github.com/PuerkitoBio/purell	v1.1.0-7-gfd18e05
 github.com/PuerkitoBio/urlesc	de5bf2a
 github.com/Sirupsen/logrus	v1.0.3-11-g89742ae
-github.com/aiwantaozi/infra-logging	master
+github.com/aiwantaozi/infra-logging-client	master
 github.com/coreos/etcd	v3.2.0-rc.1-922-g6c3575448
 github.com/coreos/go-semver	v0.2.0-7-g1817cd4
 github.com/davecgh/go-spew	v1.1.0-9-gecdeabc
@@ -55,4 +55,9 @@ k8s.io/apiextensions-apiserver	5fa4460
 k8s.io/apimachinery	abe34e4
 k8s.io/client-go	df46f7f
 k8s.io/kube-openapi	89ae48f
-
+github.com/docker/distribution/reference v2.6.0
+github.com/docker/distribution/digest v2.6.0
+github.com/emicklei/go-restful-swagger12 1.0.1
+github.com/go-openapi/loads master
+github.com/rs/xid 02dd45c
+github.com/urfave/negroni 1b4412b

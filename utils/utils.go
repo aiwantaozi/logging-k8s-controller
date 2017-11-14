@@ -55,6 +55,7 @@ func GetTargetLabel(target string) string {
 }
 
 func EncodeBase64(src []byte) (dst []byte) {
+	dst = make([]byte, base64.StdEncoding.EncodedLen(len(src)))
 	base64.StdEncoding.Encode(dst, src)
 	return
 }

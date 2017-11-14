@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	loggingv1 "github.com/aiwantaozi/infra-logging-client/logging/v1"
@@ -27,28 +28,36 @@ func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
 		return errors.Wrap(err, "decode logging fail")
 	}
 
-	var action string
-	namespace := sl.Namespace
-	// create or update secret
-	existSec, err := s.kclient.CoreV1().Secrets(namespace).Get(loggingv1.SecretName, metav1.GetOptions{})
-	if err != nil {
-		return err
+	if sl.TargetType == Embedded {
+		err = s.CreateEmbeddedTarget(sl.Namespace)
+		if err != nil {
+			return err
+		}
+		sl.ESHost = k8sutils.EmbeddedESName + "." + sl.Namespace
 	}
+
+	var action string
+	var newSec *corev1.Secret
+	namespace := sl.Namespace
 	sec, err := toK8sSecret(sl)
 	if err != nil {
 		return err
 	}
-	if existSec == nil {
+	// create or update secret
+	existSecs, err := s.kclient.CoreV1().Secrets(namespace).Get(loggingv1.SecretName, metav1.GetOptions{})
+	if existSecs == nil || err != nil {
+		if err != nil {
+			logrus.Errorf("get secret fail %v", err)
+		}
 		action = "create"
-		_, err = s.kclient.CoreV1().Secrets(namespace).Create(sec)
+		newSec, err = s.kclient.CoreV1().Secrets(namespace).Create(sec)
 	} else {
 		action = "update"
-		_, err = s.kclient.CoreV1().Secrets(namespace).Update(sec)
+		newSec, err = s.kclient.CoreV1().Secrets(namespace).Update(sec)
 	}
 	if err != nil {
 		return errors.Wrapf(err, "%s secret fail", action)
 	}
-
 	//create if crd not exist
 	runobj, pErr := s.mclient.LoggingV1().Loggings(namespace).List(metav1.ListOptions{})
 	if pErr != nil {
@@ -64,12 +73,12 @@ func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
 	if len(lgobjs.Items) == 0 {
 		action = "create"
 		lgobj := toCRDLogging(sl, nil)
-		lgobj.SecretVersion = existSec.ResourceVersion
+		lgobj.SecretVersion = newSec.ResourceVersion
 		_, err = s.mclient.LoggingV1().Loggings(namespace).Create(lgobj)
 	} else {
 		action = "update"
 		lgobj := toCRDLogging(sl, &lgobjs.Items[0])
-		lgobj.SecretVersion = existSec.ResourceVersion
+		lgobj.SecretVersion = newSec.ResourceVersion
 		_, err = s.mclient.LoggingV1().Loggings(namespace).Update(lgobj)
 	}
 	if err != nil {
@@ -137,6 +146,14 @@ func (s *Server) SetLogging(w http.ResponseWriter, req *http.Request) error {
 		return errors.Wrap(err, "decode logging fail")
 	}
 
+	if sl.TargetType == Embedded {
+		err = s.CreateEmbeddedTarget(sl.Namespace)
+		if err != nil {
+			return err
+		}
+		sl.ESHost = k8sutils.EmbeddedESName + "." + sl.Namespace
+	}
+
 	_, err = s.setLogging(sl)
 	if err != nil {
 		return errors.Wrap(err, "set logging fail")
@@ -188,7 +205,7 @@ func (s *Server) listLogging(apiContext *api.ApiContext, namespace string) ([]*L
 		return logres, nil
 	}
 
-	k8sSecs, err := s.kclient.CoreV1().Secrets(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("type", "Opaque").String()})
+	k8sSecs, err := s.kclient.CoreV1().Secrets(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", loggingv1.SecretName).String()})
 	if err != nil {
 		return logres, err
 	}
@@ -261,20 +278,20 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 			},
 		}
 	}
-	crd.Enable = res.Enable
 	crd.Target = loggingv1.Target{
+		Enable:               strconv.FormatBool(res.Enable),
 		TargetType:           res.TargetType,
-		OutputHost:           res.OutputHost,
-		OutputPort:           res.OutputPort,
 		OutputFlushInterval:  res.OutputFlushInterval,
-		OutputRecords:        res.OutputRecords,
+		OutputTags:           res.OutputTags,
+		ESHost:               res.ESHost,
+		ESPort:               res.ESPort,
 		ESLogstashPrefix:     res.ESLogstashPrefix,
 		ESLogstashDateformat: utils.ToRealDateformat(res.ESLogstashDateformat),
-		ESTagKey:             res.ESTagKey,
 		ESIncludeTagKey:      res.ESIncludeTagKey,
 		ESLogstashFormat:     res.ESLogstashFormat,
+		SplunkHost:           res.SplunkHost,
+		SplunkPort:           res.SplunkPort,
 		SplunkProtocol:       res.SplunkProtocol,
-		SplunkSource:         res.SplunkSourceType,
 		SplunkTimeFormat:     res.SplunkTimeFormat,
 	}
 
@@ -282,22 +299,26 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 }
 
 func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
+	enable, err := strconv.ParseBool(crd.Enable)
+	if err != nil {
+		logrus.Errorf("in toResLogging, parse bool to string fail, %v", err)
+	}
 	sl := Logging{
-		Enable:               crd.Enable,
+		Enable:               enable,
 		Namespace:            crd.Namespace,
 		TargetType:           TargetPluginMapping[crd.TargetType],
-		OutputHost:           crd.OutputHost,
-		OutputPort:           crd.OutputPort,
+		ESHost:               crd.ESHost,
+		ESPort:               crd.ESPort,
 		OutputFlushInterval:  crd.OutputFlushInterval,
-		OutputRecords:        crd.OutputRecords,
+		OutputTags:           crd.OutputTags,
 		ESLogstashPrefix:     crd.ESLogstashPrefix,
 		ESLogstashDateformat: utils.ToShowDateformat(crd.ESLogstashDateformat),
-		ESTagKey:             crd.ESTagKey,
 		ESLogstashFormat:     crd.ESLogstashFormat,
 		ESIncludeTagKey:      crd.ESIncludeTagKey,
+		SplunkHost:           crd.SplunkHost,
+		SplunkPort:           crd.SplunkPort,
 		SplunkProtocol:       crd.SplunkProtocol,
 		SplunkSource:         crd.SplunkSource,
-		SplunkSourceType:     crd.SplunkSourceType,
 		SplunkTimeFormat:     crd.SplunkTimeFormat,
 		Resource: client.Resource{
 			Id:      crd.Name,
@@ -327,15 +348,14 @@ func toK8sSecret(res Logging) (*corev1.Secret, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal secret data fail")
 	}
-	data := utils.EncodeBase64(b)
+	logrus.Infof("toK8sSecret k8s sec namespace: %s, data: %s", res.Namespace, string(b))
 	k8sSec := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      utils.GenerateUUID(),
-			Labels:    loggingv1.LabelMaps,
+			Name:      loggingv1.SecretName,
 			Namespace: res.Namespace,
 		},
 		Data: map[string][]byte{
-			loggingv1.SecretName: data,
+			loggingv1.SecretName: b,
 		},
 	}
 	return k8sSec, nil
@@ -344,7 +364,9 @@ func toK8sSecret(res Logging) (*corev1.Secret, error) {
 func toResSecret(k8sSec *corev1.Secret) (*Secret, error) {
 	var resSec Secret
 	err := json.Unmarshal(k8sSec.Data[loggingv1.SecretName], &resSec)
-	return &resSec, err
+	logrus.Infof("secret is namespace %s, name %s, data: %s", k8sSec.Namespace, k8sSec.Name, string(k8sSec.Data[loggingv1.SecretName]))
+	logrus.Infof("after secret is: %v", resSec)
+	return &resSec, errors.Wrap(err, "decode secret fail")
 }
 
 func (s *Server) createCRDs(namespace string) error {
@@ -362,5 +384,148 @@ func (s *Server) createCRDs(namespace string) error {
 	api/logging.go:257:75: cannot use s.mclient.LoggingV1().Loggings(namespace).List (type func("github.com/aiwantaozi/logging-k8s-controller/vendor/k8s.io/apimachinery/pkg/apis/meta/v1".ListOptions) (runtime.Object, error))
 	as type func("github.com/aiwantaozi/logging-k8s-controller/vendor/k8s.io/apimachinery/pkg/apis/meta/v1".ListOptions) (*"github.com/aiwantaozi/logging-k8s-controller/vendor/github.com/aiwantaozi/infra-logging-client/logging/v1".LoggingList, error) in argument to k8sutils.WaitForCRDReady
 	*/
+	return nil
+}
+
+func (s *Server) CreateEmbeddedTarget(namespace string) error {
+
+	// create es deployment
+	existESDep, err := s.kclient.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", k8sutils.EmbeddedESName).String()})
+	if err != nil {
+		return errors.Wrapf(err, "get deployment %s fail", k8sutils.EmbeddedESName)
+	}
+	if len(existESDep.Items) == 0 {
+		// create service account, role and rolebinding
+		sc := k8sutils.NewESServiceAccount(namespace)
+		role := k8sutils.NewESRole(namespace)
+		roleBind := k8sutils.NewESRoleBinding(namespace)
+
+		_, err := s.kclient.CoreV1().ServiceAccounts(namespace).Create(sc)
+		if err != nil {
+			return errors.Wrapf(err, "create service %s fail", k8sutils.EmbeddedESName)
+		}
+
+		_, err = s.kclient.RbacV1beta1().Roles(namespace).Create(role)
+		if err != nil {
+
+			return errors.Wrapf(err, "create role %s fail", k8sutils.EmbeddedESName)
+		}
+
+		_, err = s.kclient.RbacV1beta1().RoleBindings(namespace).Create(roleBind)
+		if err != nil {
+			return errors.Wrapf(err, "create role %s fail", k8sutils.EmbeddedESName)
+		}
+
+		// create service and deployment
+		newService := k8sutils.NewESService(namespace)
+		_, err = s.kclient.CoreV1().Services(namespace).Create(newService)
+		if err != nil {
+			return err
+		}
+		esDeployment, err := k8sutils.NewESDeployment(namespace)
+		if err != nil {
+			return errors.Wrap(err, "new elasticsearch deployment fail")
+		}
+		_, err = s.kclient.ExtensionsV1beta1().Deployments(namespace).Create(esDeployment)
+		if err != nil {
+			return err
+		}
+	}
+
+	// create kibana deployment
+	existKibanaDep, err := s.kclient.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", k8sutils.EmbeddedKibanaName).String()})
+	if err != nil {
+		return errors.Wrapf(err, "get deployment %s fail", k8sutils.EmbeddedKibanaName)
+	}
+	if len(existKibanaDep.Items) == 0 {
+		// create service account, role and rolebinding
+		sc := k8sutils.NewKibanaServiceAccount(namespace)
+		role := k8sutils.NewKibanaRole(namespace)
+		roleBind := k8sutils.NewKibanaRoleBinding(namespace)
+
+		_, err := s.kclient.CoreV1().ServiceAccounts(namespace).Create(sc)
+		if err != nil {
+			return errors.Wrapf(err, "create service %s fail", k8sutils.EmbeddedKibanaName)
+		}
+
+		_, err = s.kclient.RbacV1beta1().Roles(namespace).Create(role)
+		if err != nil {
+
+			return errors.Wrapf(err, "create role %s fail", k8sutils.EmbeddedKibanaName)
+		}
+
+		_, err = s.kclient.RbacV1beta1().RoleBindings(namespace).Create(roleBind)
+		if err != nil {
+			return errors.Wrapf(err, "create role %s fail", k8sutils.EmbeddedKibanaName)
+		}
+
+		newService := k8sutils.NewKibanaService(namespace)
+		_, err = s.kclient.CoreV1().Services(namespace).Create(newService)
+		if err != nil {
+			return err
+		}
+		kibanaDeployment, err := k8sutils.NewKibanaDeployment(namespace)
+		if err != nil {
+			return errors.Wrap(err, "new elasticsearch deployment fail")
+		}
+		_, err = s.kclient.ExtensionsV1beta1().Deployments(namespace).Create(kibanaDeployment)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) DeleteEmbeddedTarget(namespace string) error {
+	//service account
+	err := s.kclient.CoreV1().ServiceAccounts(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete service account %s fail", k8sutils.EmbeddedESName)
+	}
+	err = s.kclient.CoreV1().ServiceAccounts(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete service account %s fail", k8sutils.EmbeddedKibanaName)
+	}
+
+	//role
+	err = s.kclient.RbacV1beta1().Roles(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete role %s fail", k8sutils.EmbeddedESName)
+	}
+	err = s.kclient.RbacV1beta1().Roles(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete role %s fail", k8sutils.EmbeddedKibanaName)
+	}
+
+	//rolebinding
+	err = s.kclient.RbacV1beta1().RoleBindings(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete role %s fail", k8sutils.EmbeddedESName)
+	}
+	err = s.kclient.RbacV1beta1().RoleBindings(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete role %s fail", k8sutils.EmbeddedKibanaName)
+	}
+
+	//service
+	err = s.kclient.CoreV1().Services(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete service %s fail", k8sutils.EmbeddedESName)
+	}
+	err = s.kclient.CoreV1().Services(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete service %s fail", k8sutils.EmbeddedKibanaName)
+	}
+
+	//deployment
+	err = s.kclient.AppsV1beta1().Deployments(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete deployment %s fail", k8sutils.EmbeddedESName)
+	}
+
+	err = s.kclient.AppsV1beta1().Deployments(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "delete deployment %s fail", k8sutils.EmbeddedKibanaName)
+	}
 	return nil
 }

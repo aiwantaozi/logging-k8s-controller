@@ -23,6 +23,8 @@ const (
 	AwsElasticsearch = "aws-elasticsearch"
 	Elasticsearch    = "elasticsearch"
 	Splunk           = "splunk"
+	None             = "none"
+	Embedded         = "embedded"
 )
 
 // target type
@@ -31,6 +33,7 @@ var (
 		AwsElasticsearch: "aws-elasticsearch-service",
 		Elasticsearch:    "elasticsearch",
 		Splunk:           "splunk-http-eventcollector",
+		None:             "none",
 	}
 	TargetLabelMapping = map[string]string{
 		AwsElasticsearch: "endpoint",
@@ -39,24 +42,25 @@ var (
 
 type Logging struct {
 	client.Resource
+	Enable              bool              `json:"enable"`
 	Namespace           string            `json:"namespace"`
 	TargetType          string            `json:"targetType"`
-	OutputHost          string            `json:"outputHost"`
-	OutputPort          int               `json:"outputPort"`
 	OutputFlushInterval int               `json:"outputFlushInterval"`
-	OutputRecords       map[string]string `json:"outputRecords"`
+	OutputTags          map[string]string `json:"outputTags"`
 	//elasticsearch
+	ESHost               string `json:"esHost"`
+	ESPort               int    `json:"esPort"`
 	ESLogstashPrefix     string `json:"esLogstashPrefix"`
 	ESLogstashDateformat string `json:"esLogstashDateformat"`
-	ESTagKey             string `json:"esTagKey"` // (optional; default=fluentd)
 	ESLogstashFormat     bool   `json:"esLogstashFormat"`
 	ESIncludeTagKey      bool   `json:"esIncludeTagKey"`
 	ESAuthUser           string `json:"esAuthUser"`     //secret
 	ESAuthPassword       string `json:"esAuthPassword"` //secret
 	//splunk
+	SplunkHost       string `json:"splunkHost"`
+	SplunkPort       int    `json:"splunkPort"`
 	SplunkProtocol   string `json:"splunkProtocol"`
 	SplunkSource     string `json:"splunkSource"`
-	SplunkSourceType string `json:"splunkSourceType"`
 	SplunkTimeFormat string `json:"splunkTimeFormat"`
 	SplunkToken      string `json:"splunkToken"` //secret
 }
@@ -104,6 +108,12 @@ func loggingSchema(logging *client.Schema) {
 	logging.ResourceMethods = []string{"GET", "PUT", "DELETE"}
 	logging.IncludeableLinks = []string{SchemaLoggingPluge}
 
+	enable := logging.ResourceFields["enable"]
+	enable.Create = true
+	enable.Required = true
+	enable.Default = false
+	logging.ResourceFields["enable"] = enable
+
 	namespace := logging.ResourceFields["namespace"]
 	namespace.Create = true
 	namespace.Required = true
@@ -114,25 +124,24 @@ func loggingSchema(logging *client.Schema) {
 	targetType.Update = true
 	targetType.Required = true
 	targetType.Type = "enum"
-	targetType.Options = []string{Elasticsearch, Splunk, AwsElasticsearch}
+	targetType.Options = []string{Elasticsearch, Splunk, None, Embedded}
 	logging.ResourceFields["targetType"] = targetType
 
-	outputHost := logging.ResourceFields["outputHost"]
-	outputHost.Create = true
-	outputHost.Update = true
-	outputHost.Required = true
-	logging.ResourceFields["outputHost"] = outputHost
+	esHost := logging.ResourceFields["esHost"]
+	esHost.Create = true
+	esHost.Update = true
+	esHost.Required = true
+	logging.ResourceFields["esHost"] = esHost
 
-	outputPort := logging.ResourceFields["outputPort"]
-	outputPort.Create = true
-	outputPort.Update = true
-	outputPort.Required = true
-	logging.ResourceFields["outputPort"] = outputPort
+	esPort := logging.ResourceFields["esPort"]
+	esPort.Create = true
+	esPort.Update = true
+	esPort.Required = true
+	logging.ResourceFields["esPort"] = esPort
 
 	esLogstashPrefix := logging.ResourceFields["esLogstashPrefix"]
 	esLogstashPrefix.Create = true
 	esLogstashPrefix.Update = true
-	esLogstashPrefix.Default = "logstash"
 	logging.ResourceFields["esLogstashPrefix"] = esLogstashPrefix
 
 	outputFlushInterval := logging.ResourceFields["outputFlushInterval"]
@@ -145,13 +154,11 @@ func loggingSchema(logging *client.Schema) {
 	esLogstashFormat := logging.ResourceFields["esLogstashFormat"]
 	esLogstashFormat.Create = true
 	esLogstashFormat.Update = true
-	esLogstashFormat.Default = true
 	logging.ResourceFields["esLogstashFormat"] = esLogstashFormat
 
 	esLogstashDateformat := logging.ResourceFields["esLogstashDateformat"]
 	esLogstashDateformat.Create = true
 	esLogstashDateformat.Update = true
-	esLogstashDateformat.Required = true
 	esLogstashDateformat.Type = "enum"
 	esLogstashDateformat.Options = utils.GetShowDateformat()
 	logging.ResourceFields["esLogstashDateformat"] = esLogstashDateformat
@@ -162,10 +169,17 @@ func loggingSchema(logging *client.Schema) {
 	esIncludeTagKey.Default = true
 	logging.ResourceFields["esIncludeTagKey"] = esIncludeTagKey
 
-	esTagKey := logging.ResourceFields["esTagKey"]
-	esTagKey.Create = true
-	esTagKey.Update = true
-	logging.ResourceFields["esTagKey"] = esTagKey
+	esAuthUser := logging.ResourceFields["esAuthUser"]
+	esAuthUser.Create = true
+	esAuthUser.Update = true
+	esAuthUser.Default = ""
+	logging.ResourceFields["esAuthUser"] = esAuthUser
+
+	esAuthPassword := logging.ResourceFields["esAuthPassword"]
+	esAuthPassword.Create = true
+	esAuthPassword.Update = true
+	esAuthPassword.Default = ""
+	logging.ResourceFields["esAuthPassword"] = esAuthPassword
 
 	//splunk
 	splunkProtocol := logging.ResourceFields["splunkProtocol"]
@@ -178,15 +192,15 @@ func loggingSchema(logging *client.Schema) {
 	splunkToken := logging.ResourceFields["splunkToken"]
 	splunkToken.Create = true
 	splunkToken.Update = true
-	splunkToken.Required = true
+	splunkToken.Default = ""
 	logging.ResourceFields["splunkToken"] = splunkToken
 
-	SplunkTimeFormat := logging.ResourceFields["SplunkTimeFormat"]
-	SplunkTimeFormat.Create = true
-	SplunkTimeFormat.Update = true
-	SplunkTimeFormat.Type = "enum"
-	SplunkTimeFormat.Options = []string{"none", "unixtime", "localtime"}
-	logging.ResourceFields["SplunkTimeFormat"] = SplunkTimeFormat
+	splunkTimeFormat := logging.ResourceFields["splunkTimeFormat"]
+	splunkTimeFormat.Create = true
+	splunkTimeFormat.Update = true
+	splunkTimeFormat.Type = "enum"
+	splunkTimeFormat.Options = []string{"none", "unixtime", "localtime"}
+	logging.ResourceFields["splunkTimeFormat"] = splunkTimeFormat
 }
 
 func loggingAuthSchema(loggingAuth *client.Schema) {

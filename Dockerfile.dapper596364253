@@ -1,0 +1,2 @@
+FROM logging-k8s-controller:master
+COPY . /go/src/github.com/aiwantaozi/logging-k8s-controller/

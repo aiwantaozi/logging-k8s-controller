@@ -34,17 +34,19 @@ var (
 type Target struct {
 	TargetType string `json:"target_type"`
 	// common
-	OutputHost          string            `json:"output_host"`
-	OutputPort          int               `json:"output_port"`
+	Enable              string            `json:"enable"`
 	OutputFlushInterval int               `json:"output_flush_interval"`
-	OutputRecords       map[string]string `json:"output_records"`
+	OutputTags          map[string]string `json:"output_records"`
 	// elasticsearch
+	ESHost               string `json:"es_host"`
+	ESPort               int    `json:"es_port"`
 	ESLogstashPrefix     string `json:"es_logstash_prefix"`
 	ESLogstashDateformat string `json:"es_logstash_dateformat"`
 	ESLogstashFormat     bool   `json:"es_logstash_format"`
-	ESTagKey             string `json:"es_tag_key"` // (optional; default=fluentd)
 	ESIncludeTagKey      bool   `json:"es_include_tag_key"`
 	//splunk
+	SplunkHost       string `json:"splunk_host"`
+	SplunkPort       int    `json:"splunk_port"`
 	SplunkProtocol   string `json:"splunk_protocol"`
 	SplunkSource     string `json:"splunk_source"`
 	SplunkSourceType string `json:"splunk_sourcetype"`
@@ -55,8 +57,8 @@ type Logging struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Target            `json:"target"`
-	
-	SecretVersion     string `json:"secretVersion"`
+
+	SecretVersion string `json:"secretVersion"`
 }
 
 type LoggingList struct {
