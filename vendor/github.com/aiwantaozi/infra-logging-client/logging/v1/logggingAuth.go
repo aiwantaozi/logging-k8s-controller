@@ -150,7 +150,7 @@ func (a *loggingAuths) DeleteCollection(dopts *metav1.DeleteOptions, lopts metav
 	return a.client.DeleteCollection(dopts, lopts)
 }
 
-// LoggingFromUnstructured unmarshals an LoggingAuth object from dynamic client's unstructured
+// LoggingAuthFromUnstructured unmarshals an LoggingAuth object from dynamic client's unstructured
 func LoggingAuthFromUnstructured(r *unstructured.Unstructured) (*LoggingAuth, error) {
 	b, err := json.Marshal(r.Object)
 	if err != nil {
@@ -165,7 +165,7 @@ func LoggingAuthFromUnstructured(r *unstructured.Unstructured) (*LoggingAuth, er
 	return &a, nil
 }
 
-// UnstructuredFromLogging marshals an LoggingAuth object into dynamic client's unstructured
+// UnstructuredFromLoggingAuth marshals an LoggingAuth object into dynamic client's unstructured
 func UnstructuredFromLoggingAuth(a *LoggingAuth) (*unstructured.Unstructured, error) {
 	a.TypeMeta.Kind = LoggingAuthsKind
 	a.TypeMeta.APIVersion = GroupName + "/" + Version
