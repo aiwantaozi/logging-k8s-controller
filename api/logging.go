@@ -29,7 +29,7 @@ func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	if sl.TargetType == Embedded {
-		err = s.CreateEmbeddedTarget(sl.Namespace)
+		err = s.CreateEmbeddedTarget(loggingv1.ClusterNamespace)
 		if err != nil {
 			return err
 		}
@@ -147,7 +147,7 @@ func (s *Server) SetLogging(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	if sl.TargetType == Embedded {
-		err = s.CreateEmbeddedTarget(sl.Namespace)
+		err = s.CreateEmbeddedTarget(loggingv1.ClusterNamespace)
 		if err != nil {
 			return err
 		}
@@ -388,7 +388,6 @@ func (s *Server) createCRDs(namespace string) error {
 }
 
 func (s *Server) CreateEmbeddedTarget(namespace string) error {
-
 	// create es deployment
 	existESDep, err := s.kclient.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", k8sutils.EmbeddedESName).String()})
 	if err != nil {

@@ -209,16 +209,19 @@ func NewESService(namespace string) *apiv1.Service {
 			},
 		},
 		Spec: apiv1.ServiceSpec{
+			Type: apiv1.ServiceTypeNodePort,
 			Ports: []apiv1.ServicePort{
 				apiv1.ServicePort{
 					Name:       "http",
 					Port:       9200,
 					TargetPort: intstr.FromInt(9200),
+					NodePort:   30032,
 				},
 				apiv1.ServicePort{
 					Name:       "tcp",
 					Port:       9300,
 					TargetPort: intstr.FromInt(9300),
+					NodePort:   30033,
 				},
 			},
 			Selector: map[string]string{
@@ -240,7 +243,7 @@ func NewKibanaService(namespace string) *apiv1.Service {
 					Name:       "http",
 					Port:       5601,
 					TargetPort: intstr.FromInt(5601),
-					NodePort:   8411,
+					NodePort:   30034,
 				},
 			},
 			Type: apiv1.ServiceTypeNodePort,
