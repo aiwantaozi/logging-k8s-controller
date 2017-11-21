@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -254,17 +255,7 @@ func NewKibanaService(namespace string) *apiv1.Service {
 	}
 }
 
-func NewESDeployment(namespace string) *appsv1beta1.Deployment {
-	// resourceMemory, err := resource.ParseQuantity("2048Mi")
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// resourceCPU, err := resource.ParseQuantity("100m")
-	// if err != nil {
-	// 	return nil, err
-	// }
-
+func NewESDeployment(namespace string, cpu int64, memory int64) *appsv1beta1.Deployment {
 	deployment := &appsv1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
@@ -349,15 +340,14 @@ func NewESDeployment(namespace string) *appsv1beta1.Deployment {
 									ContainerPort: 9300,
 								},
 							},
-							// Resources: apiv1.ResourceRequirements{
-							// 	Limits: map[apiv1.ResourceName]resource.Quantity{
-							// 		apiv1.ResourceMemory: resourceMemory,
-							// 	},
-							// 	Requests: map[apiv1.ResourceName]resource.Quantity{
-							// 		apiv1.ResourceMemory: resourceMemory,
-							// 		apiv1.ResourceCPU:    resourceCPU,
-							// 	},
-							// },
+							Resources: apiv1.ResourceRequirements{
+								Requests: map[apiv1.ResourceName]resource.Quantity{
+									//CPU is always requested as an absolute quantity, never as a relative quantity; 0.1 is the same amount of CPU on a single-core, dual-core, or 48-core machine
+									apiv1.ResourceCPU: *resource.NewMilliQuantity(cpu, resource.DecimalSI),
+									//Limits and requests for memory are measured in bytes.
+									apiv1.ResourceMemory: *resource.NewQuantity(memory*(1024*1024), resource.DecimalSI), // unit is byte
+								},
+							},
 							VolumeMounts: []apiv1.VolumeMount{
 								{
 									MountPath: "/data",

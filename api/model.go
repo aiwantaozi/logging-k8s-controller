@@ -56,6 +56,9 @@ type Logging struct {
 	SplunkSource     string `json:"splunkSource"`
 	SplunkTimeFormat string `json:"splunkTimeFormat"`
 	SplunkToken      string `json:"splunkToken"` //secret
+	//embedded
+	EmResReqCPU    string `json:"emResReqCPU"`
+	EmResReqMemory string `json:"emResReqMemory"`
 }
 
 type LoggingAuth struct {
@@ -203,6 +206,21 @@ func loggingSchema(logging *client.Schema) {
 	splunkTimeFormat.Type = "enum"
 	splunkTimeFormat.Options = []string{"none", "unixtime", "localtime"}
 	logging.ResourceFields["splunkTimeFormat"] = splunkTimeFormat
+
+	//embedded
+	emResReqCPU := logging.ResourceFields["emResReqCPU"]
+	emResReqCPU.Create = true
+	emResReqCPU.Update = true
+	emResReqCPU.Type = "enum"
+	emResReqCPU.Options = []string{"1", "2", "3"}
+	logging.ResourceFields["emResReqCPU"] = emResReqCPU
+
+	emResReqMemory := logging.ResourceFields["emResReqMemory"]
+	emResReqMemory.Create = true
+	emResReqMemory.Update = true
+	emResReqMemory.Type = "enum"
+	emResReqMemory.Options = []string{"2", "4", "6"}
+	logging.ResourceFields["emResReqMemory"] = emResReqMemory
 }
 
 func loggingAuthSchema(loggingAuth *client.Schema) {

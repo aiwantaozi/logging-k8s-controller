@@ -14,6 +14,7 @@ import (
 	"github.com/rancher/go-rancher/api"
 	"github.com/rancher/go-rancher/client"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	corev1 "k8s.io/client-go/pkg/api/v1"
@@ -30,7 +31,7 @@ func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	if sl.TargetType == Embedded {
-		err = s.CreateEmbeddedTarget(loggingv1.ClusterNamespace)
+		err = s.CreateEmbeddedTarget(loggingv1.ClusterNamespace, sl.EmResReqCPU, sl.EmResReqMemory)
 		if err != nil {
 			return err
 		}
@@ -147,7 +148,7 @@ func (s *Server) SetLogging(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	if sl.TargetType == Embedded {
-		err = s.CreateEmbeddedTarget(loggingv1.ClusterNamespace)
+		err = s.CreateEmbeddedTarget(loggingv1.ClusterNamespace, sl.EmResReqCPU, sl.EmResReqMemory)
 		if err != nil {
 			return err
 		}
@@ -386,8 +387,15 @@ func (s *Server) createCRDs(namespace string) error {
 	return nil
 }
 
-func (s *Server) CreateEmbeddedTarget(namespace string) error {
-	var err error
+func (s *Server) CreateEmbeddedTarget(namespace string, emResReqCPU string, emResReqMemory string) error {
+	cpu, err := strconv.ParseInt(emResReqCPU, 64, 0)
+	if err != nil {
+		return errors.Wrap(err, "parse request cpu fail")
+	}
+	memory, err := strconv.ParseInt(emResReqMemory, 64, 0)
+	if err != nil {
+		return errors.Wrap(err, "parse request memory fail")
+	}
 	// create es deployment
 	var existESDep *v1beta1.DeploymentList
 	existESDep, err = s.kclient.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", k8sutils.EmbeddedESName).String()})
@@ -447,10 +455,25 @@ func (s *Server) CreateEmbeddedTarget(namespace string) error {
 				s.kclient.ExtensionsV1beta1().Deployments(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
 			}
 		}()
-		esDeployment := k8sutils.NewESDeployment(namespace)
+		esDeployment := k8sutils.NewESDeployment(namespace, cpu, memory)
 		_, err = s.kclient.ExtensionsV1beta1().Deployments(namespace).Create(esDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "create deployment %s fail", k8sutils.EmbeddedESName)
+		}
+	} else {
+		// update config
+		newESDep := existESDep.Items[0]
+		newESDep.Spec.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{
+			Requests: map[corev1.ResourceName]resource.Quantity{
+				//CPU is always requested as an absolute quantity, never as a relative quantity; 0.1 is the same amount of CPU on a single-core, dual-core, or 48-core machine
+				corev1.ResourceCPU: *resource.NewMilliQuantity(cpu, resource.DecimalSI),
+				//Limits and requests for memory are measured in bytes.
+				corev1.ResourceMemory: *resource.NewQuantity(memory*(1024*1024), resource.DecimalSI), // unit is byte
+			},
+		}
+		_, err = s.kclient.ExtensionsV1beta1().Deployments(namespace).Update(&newESDep)
+		if err != nil {
+			return errors.Wrapf(err, "update deployment %s fail", k8sutils.EmbeddedESName)
 		}
 	}
 

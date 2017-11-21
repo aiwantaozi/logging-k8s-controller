@@ -64,7 +64,7 @@ func startServer(c *cli.Context) error {
 	router := http.Handler(api.NewRouter(server))
 
 	n := negroni.New()
-	logger := utils.NewLogger()
+	logger := utils.NewLogger() //TODO: just for trouble shoot, need to remove
 	// logger.SetFormat("[{{.Status}} {{.Duration}}] - {{.Request.UserAgent}} - {{.Request.RequestBody}}")
 	// n.Use(logger)
 	n.Use(negroni.HandlerFunc(logger.ServeHTTP))
