@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	corev1 "k8s.io/client-go/pkg/api/v1"
+	v1beta1 "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
@@ -33,7 +34,6 @@ func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
 		if err != nil {
 			return err
 		}
-		sl.ESHost = k8sutils.EmbeddedESName + "." + sl.Namespace
 	}
 
 	var action string
@@ -151,7 +151,6 @@ func (s *Server) SetLogging(w http.ResponseWriter, req *http.Request) error {
 		if err != nil {
 			return err
 		}
-		sl.ESHost = k8sutils.EmbeddedESName + "." + sl.Namespace
 	}
 
 	_, err = s.setLogging(sl)
@@ -306,7 +305,7 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 	sl := Logging{
 		Enable:               enable,
 		Namespace:            crd.Namespace,
-		TargetType:           TargetPluginMapping[crd.TargetType],
+		TargetType:           crd.TargetType,
 		ESHost:               crd.ESHost,
 		ESPort:               crd.ESPort,
 		OutputFlushInterval:  crd.OutputFlushInterval,
@@ -388,8 +387,10 @@ func (s *Server) createCRDs(namespace string) error {
 }
 
 func (s *Server) CreateEmbeddedTarget(namespace string) error {
+	var err error
 	// create es deployment
-	existESDep, err := s.kclient.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", k8sutils.EmbeddedESName).String()})
+	var existESDep *v1beta1.DeploymentList
+	existESDep, err = s.kclient.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", k8sutils.EmbeddedESName).String()})
 	if err != nil {
 		return errors.Wrapf(err, "get deployment %s fail", k8sutils.EmbeddedESName)
 	}
@@ -399,40 +400,63 @@ func (s *Server) CreateEmbeddedTarget(namespace string) error {
 		role := k8sutils.NewESRole(namespace)
 		roleBind := k8sutils.NewESRoleBinding(namespace)
 
-		_, err := s.kclient.CoreV1().ServiceAccounts(namespace).Create(sc)
+		defer func() {
+			if err != nil {
+				s.kclient.CoreV1().ServiceAccounts(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+			}
+		}()
+		_, err = s.kclient.CoreV1().ServiceAccounts(namespace).Create(sc)
 		if err != nil {
-			return errors.Wrapf(err, "create service %s fail", k8sutils.EmbeddedESName)
+			return errors.Wrapf(err, "create service account %s fail", k8sutils.EmbeddedESName)
 		}
 
+		defer func() {
+			if err != nil {
+				s.kclient.RbacV1beta1().Roles(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+			}
+		}()
 		_, err = s.kclient.RbacV1beta1().Roles(namespace).Create(role)
 		if err != nil {
-
 			return errors.Wrapf(err, "create role %s fail", k8sutils.EmbeddedESName)
 		}
 
+		defer func() {
+			if err != nil {
+				s.kclient.RbacV1beta1().RoleBindings(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+			}
+		}()
 		_, err = s.kclient.RbacV1beta1().RoleBindings(namespace).Create(roleBind)
 		if err != nil {
 			return errors.Wrapf(err, "create role %s fail", k8sutils.EmbeddedESName)
 		}
 
+		defer func() {
+			if err != nil {
+				s.kclient.CoreV1().Services(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+			}
+		}()
 		// create service and deployment
 		newService := k8sutils.NewESService(namespace)
 		_, err = s.kclient.CoreV1().Services(namespace).Create(newService)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "create service %s fail", k8sutils.EmbeddedESName)
 		}
-		esDeployment, err := k8sutils.NewESDeployment(namespace)
-		if err != nil {
-			return errors.Wrap(err, "new elasticsearch deployment fail")
-		}
+
+		defer func() {
+			if err != nil {
+				s.kclient.ExtensionsV1beta1().Deployments(namespace).Delete(k8sutils.EmbeddedESName, &metav1.DeleteOptions{})
+			}
+		}()
+		esDeployment := k8sutils.NewESDeployment(namespace)
 		_, err = s.kclient.ExtensionsV1beta1().Deployments(namespace).Create(esDeployment)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "create deployment %s fail", k8sutils.EmbeddedESName)
 		}
 	}
 
 	// create kibana deployment
-	existKibanaDep, err := s.kclient.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", k8sutils.EmbeddedKibanaName).String()})
+	var existKibanaDep *v1beta1.DeploymentList
+	existKibanaDep, err = s.kclient.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", k8sutils.EmbeddedKibanaName).String()})
 	if err != nil {
 		return errors.Wrapf(err, "get deployment %s fail", k8sutils.EmbeddedKibanaName)
 	}
@@ -442,34 +466,57 @@ func (s *Server) CreateEmbeddedTarget(namespace string) error {
 		role := k8sutils.NewKibanaRole(namespace)
 		roleBind := k8sutils.NewKibanaRoleBinding(namespace)
 
-		_, err := s.kclient.CoreV1().ServiceAccounts(namespace).Create(sc)
+		defer func() {
+			if err != nil {
+				s.kclient.CoreV1().ServiceAccounts(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+			}
+		}()
+		_, err = s.kclient.CoreV1().ServiceAccounts(namespace).Create(sc)
 		if err != nil {
-			return errors.Wrapf(err, "create service %s fail", k8sutils.EmbeddedKibanaName)
+			return errors.Wrapf(err, "create service account  %s fail", k8sutils.EmbeddedKibanaName)
 		}
 
+		defer func() {
+			if err != nil {
+				s.kclient.RbacV1beta1().Roles(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+			}
+		}()
 		_, err = s.kclient.RbacV1beta1().Roles(namespace).Create(role)
 		if err != nil {
 
 			return errors.Wrapf(err, "create role %s fail", k8sutils.EmbeddedKibanaName)
 		}
 
+		defer func() {
+			if err != nil {
+				s.kclient.RbacV1beta1().RoleBindings(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+			}
+		}()
 		_, err = s.kclient.RbacV1beta1().RoleBindings(namespace).Create(roleBind)
 		if err != nil {
 			return errors.Wrapf(err, "create role %s fail", k8sutils.EmbeddedKibanaName)
 		}
 
+		defer func() {
+			if err != nil {
+				s.kclient.CoreV1().Services(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+			}
+		}()
 		newService := k8sutils.NewKibanaService(namespace)
 		_, err = s.kclient.CoreV1().Services(namespace).Create(newService)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "create service %s fail", k8sutils.EmbeddedKibanaName)
 		}
-		kibanaDeployment, err := k8sutils.NewKibanaDeployment(namespace)
-		if err != nil {
-			return errors.Wrap(err, "new elasticsearch deployment fail")
-		}
+
+		defer func() {
+			if err != nil {
+				s.kclient.ExtensionsV1beta1().Deployments(namespace).Delete(k8sutils.EmbeddedKibanaName, &metav1.DeleteOptions{})
+			}
+		}()
+		kibanaDeployment := k8sutils.NewKibanaDeployment(namespace)
 		_, err = s.kclient.ExtensionsV1beta1().Deployments(namespace).Create(kibanaDeployment)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "create deployment %s fail", k8sutils.EmbeddedKibanaName)
 		}
 	}
 	return nil

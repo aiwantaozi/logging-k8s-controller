@@ -23,18 +23,11 @@ const (
 	AwsElasticsearch = "aws-elasticsearch"
 	Elasticsearch    = "elasticsearch"
 	Splunk           = "splunk"
-	None             = "none"
 	Embedded         = "embedded"
 )
 
 // target type
 var (
-	TargetPluginMapping = map[string]string{
-		AwsElasticsearch: "aws-elasticsearch-service",
-		Elasticsearch:    "elasticsearch",
-		Splunk:           "splunk-http-eventcollector",
-		None:             "none",
-	}
 	TargetLabelMapping = map[string]string{
 		AwsElasticsearch: "endpoint",
 	}
@@ -124,7 +117,7 @@ func loggingSchema(logging *client.Schema) {
 	targetType.Update = true
 	targetType.Required = true
 	targetType.Type = "enum"
-	targetType.Options = []string{Elasticsearch, Splunk, None, Embedded}
+	targetType.Options = []string{Elasticsearch, Splunk, Embedded}
 	logging.ResourceFields["targetType"] = targetType
 
 	esHost := logging.ResourceFields["esHost"]
@@ -159,6 +152,7 @@ func loggingSchema(logging *client.Schema) {
 	esLogstashDateformat := logging.ResourceFields["esLogstashDateformat"]
 	esLogstashDateformat.Create = true
 	esLogstashDateformat.Update = true
+	esLogstashDateformat.Default = "YYYY.MM.DD"
 	esLogstashDateformat.Type = "enum"
 	esLogstashDateformat.Options = utils.GetShowDateformat()
 	logging.ResourceFields["esLogstashDateformat"] = esLogstashDateformat
@@ -186,8 +180,15 @@ func loggingSchema(logging *client.Schema) {
 	splunkProtocol.Create = true
 	splunkProtocol.Update = true
 	splunkProtocol.Type = "enum"
+	splunkProtocol.Default = "http"
 	splunkProtocol.Options = []string{"https", "http"}
 	logging.ResourceFields["splunkProtocol"] = splunkProtocol
+
+	splunkPort := logging.ResourceFields["splunkPort"]
+	splunkPort.Create = true
+	splunkPort.Update = true
+	splunkPort.Default = "8088"
+	logging.ResourceFields["splunkPort"] = splunkPort
 
 	splunkToken := logging.ResourceFields["splunkToken"]
 	splunkToken.Create = true
@@ -198,6 +199,7 @@ func loggingSchema(logging *client.Schema) {
 	splunkTimeFormat := logging.ResourceFields["splunkTimeFormat"]
 	splunkTimeFormat.Create = true
 	splunkTimeFormat.Update = true
+	splunkTimeFormat.Default = "unixtime"
 	splunkTimeFormat.Type = "enum"
 	splunkTimeFormat.Options = []string{"none", "unixtime", "localtime"}
 	logging.ResourceFields["splunkTimeFormat"] = splunkTimeFormat

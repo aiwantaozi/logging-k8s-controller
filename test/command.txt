@@ -6,13 +6,37 @@ curl -X POST \
 
 
 curl -X POST \
-  http://47.52.113.11:30090/v6/loggings \
+  http://${aliyunhost}:30090/v6/loggings \
   -H 'content-type: application/json' \
-  -d '{"enable": false,"esAuthPassword": "","esAuthUser": "","esHost": "47.52.113.11","esIncludeTagKey": false,"esLogstashDateformat": "YYYY.MM.DD","esLogstashFormat": false,"esLogstashPrefix": "logstash","esPort": 9200,"namespace": "cattle-system","outputFlushInterval": 0,"outputTags": null,"splunkHost": "","splunkPort": 0,"splunkProtocol": "","splunkSource": "","splunkTimeFormat": "","splunkToken": "","targetType": "elasticsearch","type": "logging"}'
+  -d '{"enable": false,"esAuthPassword": "","esAuthUser": "","esHost": "${aliyunhost}","esIncludeTagKey": false,"esLogstashDateformat": "YYYY.MM.DD","esLogstashFormat": false,"esLogstashPrefix": "logstash","esPort": 9200,"namespace": "cattle-system","outputFlushInterval": 0,"outputTags": null,"splunkHost": "","splunkPort": 0,"splunkProtocol": "","splunkSource": "","splunkTimeFormat": "","splunkToken": "","targetType": "elasticsearch","type": "logging"}'
 
 curl -X PUT \
-  http://47.52.113.11:30090/v6/loggings/b84oejv3p5k000e7l25g \
+  http://${aliyunhost}:30090/v6/loggings/b84oejv3p5k000e7l25g \
   -H 'content-type: application/json' \
-  -d '{"id": "b84oejv3p5k000e7l25g","enable": true,"esAuthPassword": "","esAuthUser": "aws","esHost": "47.52.113.11","esIncludeTagKey": false,"esLogstashDateformat": "YYYY.MM.DD","esLogstashFormat": false,"esLogstashPrefix": "logstash","esPort": 0,"namespace": "cattle-system","outputFlushInterval": 0,"outputTags": null,"splunkHost": "","splunkPort": 0,"splunkProtocol": "","splunkSource": "","splunkTimeFormat": "","splunkToken": "","targetType": "elasticsearch","type": "logging"}'
+  -d '{"id": "b84oejv3p5k000e7l25g","enable": true,"esAuthPassword": "","esAuthUser": "aws","esHost": "${aliyunhost}","esIncludeTagKey": false,"esLogstashDateformat": "YYYY.MM.DD","esLogstashFormat": false,"esLogstashPrefix": "logstash","esPort": 0,"namespace": "cattle-system","outputFlushInterval": 0,"outputTags": null,"splunkHost": "","splunkPort": 0,"splunkProtocol": "","splunkSource": "","splunkTimeFormat": "","splunkToken": "","targetType": "elasticsearch","type": "logging"}'
+
+
+embedded
+curl -X PUT \
+-H 'Accept: application/json' \
+-H 'Content-Type: application/json' \
+-d '{"actions":{}, "enable":true, "esAuthPassword":"changeme", "esAuthUser":"myelastic", "esHost":"192.168.1.126", "esIncludeTagKey":true, "esLogstashDateformat":"YYYY.MM.DD", "esLogstashFormat":true, "esLogstashPrefix":"logstash", "esPort":9200, "id":"b84nlkv2nr8ogbkrltl0", "links":{"remove":"http://localhost:8090/v6/loggings/b84nlkv2nr8ogbkrltl0", "self":"http://localhost:8090/v6/loggings/b84nlkv2nr8ogbkrltl0", "update":"http://localhost:8090/v6/loggings/b84nlkv2nr8ogbkrltl0"}, "namespace":"cattle-system", "outputFlushInterval":1, "outputTags":{"mytag1":"record1", "mytag2":"record2"}, "splunkHost":"", "splunkPort":0, "splunkProtocol":"https", "splunkSource":"", "splunkTimeFormat":"none", "splunkToken":"", "targetType":"embedded", "type":"logging"}' \
+'http://localhost:8090/v6/loggings/b84nlkv2nr8ogbkrltl0'
+
+
+curl -X PUT \
+-H 'Accept: application/json' \
+-H 'Content-Type: application/json' \
+-d '{"actions":{}, "enable":true, "esAuthPassword":"changeme", "esAuthUser":"myelastic", "esHost":"192.168.1.126", "esIncludeTagKey":true, "esLogstashDateformat":"YYYY.MM.DD", "esLogstashFormat":true, "esLogstashPrefix":"logstash", "esPort":9200, "id":"b84nlkv2nr8ogbkrltl0", "links":{"remove":"http://localhost:8090/v6/loggings/b84nlkv2nr8ogbkrltl0", "self":"http://localhost:8090/v6/loggings/b84nlkv2nr8ogbkrltl0", "update":"http://localhost:8090/v6/loggings/b84nlkv2nr8ogbkrltl0"}, "namespace":"cattle-system", "outputFlushInterval":1, "outputTags":{"mytag1":"record1", "mytag2":"record2"}, "splunkHost":"", "splunkPort":0, "splunkProtocol":"https", "splunkSource":"", "splunkTimeFormat":"none", "splunkToken":"", "targetType":"embedded", "type":"logging"}' \
+'http://localhost:8090/v6/loggings/b84nlkv2nr8ogbkrltl0'
+
+
+
+splunk
+curl -X PUT \
+-H 'Accept: application/json' \
+-H 'Content-Type: application/json' \
+-d '{"enable":true,"esAuthPassword":"","esAuthUser":"","esIncludeTagKey":true,"outputFlushInterval":1,"splunkToken":"95cf9a5b-c08d-4964-87f8-b009e2db3346","esHost":"${aliyunhost}","esLogstashDateformat":"YYYY.MM.DD","esLogstashFormat":true,"esLogstashPrefix":"default","esPort":30022,"id":"b898smtmuvlg009ufn20","namespace":"default","outputTags":{"a":"b","c":"d"},"splunkHost":"${aliyunhost}","splunkPort":30013,"splunkProtocol":"http","splunkSource":"rancher","splunkTimeFormat":"unixtime","targetType":"splunk","type":"logging","splnukHost":"${aliyunhost}"}' \
+'http://${aliyunhost}:30090/v6/loggings/b898smtmuvlg009ufn20'
 
 curl http://127.0.0.1:8090/v6/loggings/rancherlogging?namespace=ns-1

@@ -215,13 +215,13 @@ func NewESService(namespace string) *apiv1.Service {
 					Name:       "http",
 					Port:       9200,
 					TargetPort: intstr.FromInt(9200),
-					NodePort:   30032,
+					NodePort:   8401,
 				},
 				apiv1.ServicePort{
 					Name:       "tcp",
 					Port:       9300,
 					TargetPort: intstr.FromInt(9300),
-					NodePort:   30033,
+					NodePort:   8412,
 				},
 			},
 			Selector: map[string]string{
@@ -243,7 +243,7 @@ func NewKibanaService(namespace string) *apiv1.Service {
 					Name:       "http",
 					Port:       5601,
 					TargetPort: intstr.FromInt(5601),
-					NodePort:   30034,
+					NodePort:   8403,
 				},
 			},
 			Type: apiv1.ServiceTypeNodePort,
@@ -254,7 +254,7 @@ func NewKibanaService(namespace string) *apiv1.Service {
 	}
 }
 
-func NewESDeployment(namespace string) (*appsv1beta1.Deployment, error) {
+func NewESDeployment(namespace string) *appsv1beta1.Deployment {
 	// resourceMemory, err := resource.ParseQuantity("2048Mi")
 	// if err != nil {
 	// 	return nil, err
@@ -380,10 +380,10 @@ func NewESDeployment(namespace string) (*appsv1beta1.Deployment, error) {
 		},
 	}
 
-	return deployment, nil
+	return deployment
 }
 
-func NewKibanaDeployment(namespace string) (*appsv1beta1.Deployment, error) {
+func NewKibanaDeployment(namespace string) *appsv1beta1.Deployment {
 	deployment := &appsv1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
@@ -412,7 +412,7 @@ func NewKibanaDeployment(namespace string) (*appsv1beta1.Deployment, error) {
 							Env: []apiv1.EnvVar{
 								{
 									Name:  "ELASTICSEARCH_URL",
-									Value: "http://" + EmbeddedESName + "." + namespace,
+									Value: "http://" + EmbeddedESName + "." + namespace + ":9200",
 								},
 							},
 						},
@@ -423,7 +423,7 @@ func NewKibanaDeployment(namespace string) (*appsv1beta1.Deployment, error) {
 		},
 	}
 
-	return deployment, nil
+	return deployment
 }
 
 func int32Ptr(i int32) *int32 { return &i }
