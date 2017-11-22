@@ -17,6 +17,8 @@ const (
 	SchemaLoggingPluge     = "loggings"
 	SchemaLoggingAuth      = "loggingAuth"
 	SchemaLoggingAuthPluge = "loggingAuths"
+	defaultEmResReqCPU     = "2"
+	defaultEmResReqMemory  = "2"
 )
 
 const (
@@ -46,7 +48,6 @@ type Logging struct {
 	ESLogstashPrefix     string `json:"esLogstashPrefix"`
 	ESLogstashDateformat string `json:"esLogstashDateformat"`
 	ESLogstashFormat     bool   `json:"esLogstashFormat"`
-	ESIncludeTagKey      bool   `json:"esIncludeTagKey"`
 	ESAuthUser           string `json:"esAuthUser"`     //secret
 	ESAuthPassword       string `json:"esAuthPassword"` //secret
 	//splunk
@@ -133,6 +134,7 @@ func loggingSchema(logging *client.Schema) {
 	esPort.Create = true
 	esPort.Update = true
 	esPort.Required = true
+	esPort.Default = 9200
 	logging.ResourceFields["esPort"] = esPort
 
 	esLogstashPrefix := logging.ResourceFields["esLogstashPrefix"]
@@ -160,12 +162,6 @@ func loggingSchema(logging *client.Schema) {
 	esLogstashDateformat.Options = utils.GetShowDateformat()
 	logging.ResourceFields["esLogstashDateformat"] = esLogstashDateformat
 
-	esIncludeTagKey := logging.ResourceFields["esIncludeTagKey"]
-	esIncludeTagKey.Create = true
-	esIncludeTagKey.Update = true
-	esIncludeTagKey.Default = true
-	logging.ResourceFields["esIncludeTagKey"] = esIncludeTagKey
-
 	esAuthUser := logging.ResourceFields["esAuthUser"]
 	esAuthUser.Create = true
 	esAuthUser.Update = true
@@ -190,7 +186,7 @@ func loggingSchema(logging *client.Schema) {
 	splunkPort := logging.ResourceFields["splunkPort"]
 	splunkPort.Create = true
 	splunkPort.Update = true
-	splunkPort.Default = "8088"
+	splunkPort.Default = 8088
 	logging.ResourceFields["splunkPort"] = splunkPort
 
 	splunkToken := logging.ResourceFields["splunkToken"]
@@ -211,6 +207,7 @@ func loggingSchema(logging *client.Schema) {
 	emResReqCPU := logging.ResourceFields["emResReqCPU"]
 	emResReqCPU.Create = true
 	emResReqCPU.Update = true
+	emResReqCPU.Default = defaultEmResReqCPU
 	emResReqCPU.Type = "enum"
 	emResReqCPU.Options = []string{"1", "2", "3"}
 	logging.ResourceFields["emResReqCPU"] = emResReqCPU
@@ -218,6 +215,7 @@ func loggingSchema(logging *client.Schema) {
 	emResReqMemory := logging.ResourceFields["emResReqMemory"]
 	emResReqMemory.Create = true
 	emResReqMemory.Update = true
+	emResReqMemory.Default = defaultEmResReqMemory
 	emResReqMemory.Type = "enum"
 	emResReqMemory.Options = []string{"2", "4", "6"}
 	logging.ResourceFields["emResReqMemory"] = emResReqMemory

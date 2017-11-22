@@ -51,6 +51,9 @@ type Target struct {
 	SplunkSource     string `json:"splunk_source"`
 	SplunkSourceType string `json:"splunk_sourcetype"`
 	SplunkTimeFormat string `json:"splunk_time_format"`
+	//embedded
+	EmResReqCPU    string `json:"emResReqCPU"`
+	EmResReqMemory string `json:"emResReqMemory"`
 }
 
 type Logging struct {

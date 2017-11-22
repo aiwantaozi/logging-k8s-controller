@@ -31,6 +31,12 @@ func (s *Server) CreateLogging(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	if sl.TargetType == Embedded {
+		if sl.EmResReqCPU == "" {
+			sl.EmResReqCPU = defaultEmResReqCPU
+		}
+		if sl.EmResReqMemory == "" {
+			sl.EmResReqMemory = defaultEmResReqMemory
+		}
 		err = s.CreateEmbeddedTarget(loggingv1.ClusterNamespace, sl.EmResReqCPU, sl.EmResReqMemory)
 		if err != nil {
 			return err
@@ -148,6 +154,12 @@ func (s *Server) SetLogging(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	if sl.TargetType == Embedded {
+		if sl.EmResReqCPU == "" {
+			sl.EmResReqCPU = defaultEmResReqCPU
+		}
+		if sl.EmResReqMemory == "" {
+			sl.EmResReqMemory = defaultEmResReqMemory
+		}
 		err = s.CreateEmbeddedTarget(loggingv1.ClusterNamespace, sl.EmResReqCPU, sl.EmResReqMemory)
 		if err != nil {
 			return err
@@ -287,12 +299,13 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 		ESPort:               res.ESPort,
 		ESLogstashPrefix:     res.ESLogstashPrefix,
 		ESLogstashDateformat: utils.ToRealDateformat(res.ESLogstashDateformat),
-		ESIncludeTagKey:      res.ESIncludeTagKey,
 		ESLogstashFormat:     res.ESLogstashFormat,
 		SplunkHost:           res.SplunkHost,
 		SplunkPort:           res.SplunkPort,
 		SplunkProtocol:       res.SplunkProtocol,
 		SplunkTimeFormat:     res.SplunkTimeFormat,
+		EmResReqCPU:          res.EmResReqCPU,
+		EmResReqMemory:       res.EmResReqMemory,
 	}
 
 	return crd
@@ -314,12 +327,13 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 		ESLogstashPrefix:     crd.ESLogstashPrefix,
 		ESLogstashDateformat: utils.ToShowDateformat(crd.ESLogstashDateformat),
 		ESLogstashFormat:     crd.ESLogstashFormat,
-		ESIncludeTagKey:      crd.ESIncludeTagKey,
 		SplunkHost:           crd.SplunkHost,
 		SplunkPort:           crd.SplunkPort,
 		SplunkProtocol:       crd.SplunkProtocol,
 		SplunkSource:         crd.SplunkSource,
 		SplunkTimeFormat:     crd.SplunkTimeFormat,
+		EmResReqCPU:          crd.EmResReqCPU,
+		EmResReqMemory:       crd.EmResReqMemory,
 		Resource: client.Resource{
 			Id:      crd.Name,
 			Type:    SchemaLogging,
@@ -388,11 +402,11 @@ func (s *Server) createCRDs(namespace string) error {
 }
 
 func (s *Server) CreateEmbeddedTarget(namespace string, emResReqCPU string, emResReqMemory string) error {
-	cpu, err := strconv.ParseInt(emResReqCPU, 64, 0)
+	cpu, err := strconv.ParseInt(emResReqCPU, 10, 64)
 	if err != nil {
 		return errors.Wrap(err, "parse request cpu fail")
 	}
-	memory, err := strconv.ParseInt(emResReqMemory, 64, 0)
+	memory, err := strconv.ParseInt(emResReqMemory, 10, 64)
 	if err != nil {
 		return errors.Wrap(err, "parse request memory fail")
 	}
