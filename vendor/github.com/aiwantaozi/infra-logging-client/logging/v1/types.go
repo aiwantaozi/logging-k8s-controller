@@ -42,8 +42,6 @@ type Target struct {
 	ESPort               int    `json:"es_port"`
 	ESLogstashPrefix     string `json:"es_logstash_prefix"`
 	ESLogstashDateformat string `json:"es_logstash_dateformat"`
-	ESLogstashFormat     bool   `json:"es_logstash_format"`
-	ESIncludeTagKey      bool   `json:"es_include_tag_key"`
 	//splunk
 	SplunkHost       string `json:"splunk_host"`
 	SplunkPort       int    `json:"splunk_port"`
@@ -52,8 +50,18 @@ type Target struct {
 	SplunkSourceType string `json:"splunk_sourcetype"`
 	SplunkTimeFormat string `json:"splunk_time_format"`
 	//embedded
-	EmResReqCPU    string `json:"emResReqCPU"`
-	EmResReqMemory string `json:"emResReqMemory"`
+	EmResReqCPU    string `json:"em_res_req_cpu"`
+	EmResReqMemory string `json:"em_res_req_memory"`
+	//kafka
+	KafkaBrokerType    string `json:"kafka_broker_type"`
+	KafkaBrokers       string `json:"kafka_brokers"`
+	KafkaZookeeperHost string `json:"kafka_zookeeper_host"`
+	KafkaZookeeperPort int    `json:"kafka_zookeeper_port"`
+	KafkaTopic         string `json:"kafka_topic"`
+	//kafka data type
+	KafkaOutputDataType string `json:"kafka_output_data_type"`
+	//kafka producer settings
+	KafkaMaxSendRetries int `json:"kafka_max_send_retries"`
 }
 
 type Logging struct {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	loggingv1 "github.com/aiwantaozi/infra-logging-client/logging/v1"
@@ -299,13 +300,19 @@ func toCRDLogging(res Logging, crd *loggingv1.Logging) *loggingv1.Logging {
 		ESPort:               res.ESPort,
 		ESLogstashPrefix:     res.ESLogstashPrefix,
 		ESLogstashDateformat: utils.ToRealDateformat(res.ESLogstashDateformat),
-		ESLogstashFormat:     res.ESLogstashFormat,
 		SplunkHost:           res.SplunkHost,
 		SplunkPort:           res.SplunkPort,
 		SplunkProtocol:       res.SplunkProtocol,
 		SplunkTimeFormat:     res.SplunkTimeFormat,
 		EmResReqCPU:          res.EmResReqCPU,
 		EmResReqMemory:       res.EmResReqMemory,
+		KafkaBrokerType:      res.KafkaBrokerType,
+		KafkaBrokers:         strings.Join(res.KafkaBrokers, ","),
+		KafkaZookeeperHost:   res.KafkaZookeeperHost,
+		KafkaZookeeperPort:   res.KafkaZookeeperPort,
+		KafkaTopic:           res.KafkaTopic,
+		KafkaOutputDataType:  res.KafkaOutputDataType,
+		KafkaMaxSendRetries:  res.KafkaMaxSendRetries,
 	}
 
 	return crd
@@ -326,7 +333,6 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 		OutputTags:           crd.OutputTags,
 		ESLogstashPrefix:     crd.ESLogstashPrefix,
 		ESLogstashDateformat: utils.ToShowDateformat(crd.ESLogstashDateformat),
-		ESLogstashFormat:     crd.ESLogstashFormat,
 		SplunkHost:           crd.SplunkHost,
 		SplunkPort:           crd.SplunkPort,
 		SplunkProtocol:       crd.SplunkProtocol,
@@ -334,6 +340,13 @@ func toResLogging(apiContext *api.ApiContext, crd loggingv1.Logging) *Logging {
 		SplunkTimeFormat:     crd.SplunkTimeFormat,
 		EmResReqCPU:          crd.EmResReqCPU,
 		EmResReqMemory:       crd.EmResReqMemory,
+		KafkaBrokerType:      crd.KafkaBrokerType,
+		KafkaBrokers:         strings.Split(crd.KafkaBrokers, ","),
+		KafkaZookeeperHost:   crd.KafkaZookeeperHost,
+		KafkaZookeeperPort:   crd.KafkaZookeeperPort,
+		KafkaTopic:           crd.KafkaTopic,
+		KafkaOutputDataType:  crd.KafkaOutputDataType,
+		KafkaMaxSendRetries:  crd.KafkaMaxSendRetries,
 		Resource: client.Resource{
 			Id:      crd.Name,
 			Type:    SchemaLogging,

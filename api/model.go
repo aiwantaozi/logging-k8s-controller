@@ -25,6 +25,7 @@ const (
 	AwsElasticsearch = "aws-elasticsearch"
 	Elasticsearch    = "elasticsearch"
 	Splunk           = "splunk"
+	Kafka            = "kafka"
 	Embedded         = "embedded"
 )
 
@@ -47,7 +48,6 @@ type Logging struct {
 	ESPort               int    `json:"esPort"`
 	ESLogstashPrefix     string `json:"esLogstashPrefix"`
 	ESLogstashDateformat string `json:"esLogstashDateformat"`
-	ESLogstashFormat     bool   `json:"esLogstashFormat"`
 	ESAuthUser           string `json:"esAuthUser"`     //secret
 	ESAuthPassword       string `json:"esAuthPassword"` //secret
 	//splunk
@@ -60,6 +60,17 @@ type Logging struct {
 	//embedded
 	EmResReqCPU    string `json:"emResReqCPU"`
 	EmResReqMemory string `json:"emResReqMemory"`
+	//kafka
+	KafkaBrokerType    string   `json:"kafkaBrokerType"`
+	KafkaBrokers       []string `json:"kafkaBrokers"`
+	KafkaZookeeperHost string   `json:"kafkaZookeeperHost"`
+	KafkaZookeeperPort int      `json:"kafkaZookeeperPort"`
+
+	KafkaTopic string `json:"kafkaTopic"`
+	//kafka data type
+	KafkaOutputDataType string `json:"kafkaOutputDataType"`
+	//kafka producer settings
+	KafkaMaxSendRetries int `json:"kafkaMaxSendRetries"`
 }
 
 type LoggingAuth struct {
@@ -120,20 +131,19 @@ func loggingSchema(logging *client.Schema) {
 	targetType.Create = true
 	targetType.Update = true
 	targetType.Required = true
+	targetType.Default = Embedded
 	targetType.Type = "enum"
-	targetType.Options = []string{Elasticsearch, Splunk, Embedded}
+	targetType.Options = []string{Embedded, Elasticsearch, Splunk, Kafka}
 	logging.ResourceFields["targetType"] = targetType
 
 	esHost := logging.ResourceFields["esHost"]
 	esHost.Create = true
 	esHost.Update = true
-	esHost.Required = true
 	logging.ResourceFields["esHost"] = esHost
 
 	esPort := logging.ResourceFields["esPort"]
 	esPort.Create = true
 	esPort.Update = true
-	esPort.Required = true
 	esPort.Default = 9200
 	logging.ResourceFields["esPort"] = esPort
 
@@ -149,11 +159,6 @@ func loggingSchema(logging *client.Schema) {
 	logging.ResourceFields["outputFlushInterval"] = outputFlushInterval
 
 	// elasticsearch
-	esLogstashFormat := logging.ResourceFields["esLogstashFormat"]
-	esLogstashFormat.Create = true
-	esLogstashFormat.Update = true
-	logging.ResourceFields["esLogstashFormat"] = esLogstashFormat
-
 	esLogstashDateformat := logging.ResourceFields["esLogstashDateformat"]
 	esLogstashDateformat.Create = true
 	esLogstashDateformat.Update = true
@@ -219,6 +224,41 @@ func loggingSchema(logging *client.Schema) {
 	emResReqMemory.Type = "enum"
 	emResReqMemory.Options = []string{"2", "4", "6"}
 	logging.ResourceFields["emResReqMemory"] = emResReqMemory
+
+	//kafka
+	kafkaBrokerType := logging.ResourceFields["kafkaBrokerType"]
+	kafkaBrokerType.Create = true
+	kafkaBrokerType.Update = true
+	kafkaBrokerType.Default = "broker"
+	kafkaBrokerType.Type = "enum"
+	kafkaBrokerType.Options = []string{"broker", "zookeeper"}
+	logging.ResourceFields["kafkaBrokerType"] = kafkaBrokerType
+
+	kafkaTopic := logging.ResourceFields["kafkaTopic"]
+	kafkaTopic.Create = true
+	kafkaTopic.Update = true
+	kafkaTopic.Default = "message"
+	logging.ResourceFields["kafkaTopic"] = kafkaTopic
+
+	kafkaOutputDataType := logging.ResourceFields["kafkaOutputDataType"]
+	kafkaOutputDataType.Create = true
+	kafkaOutputDataType.Update = true
+	kafkaOutputDataType.Default = "json"
+	kafkaOutputDataType.Type = "enum"
+	kafkaOutputDataType.Options = []string{"json", "ltsv", "msgpack"}
+	logging.ResourceFields["kafkaOutputDataType"] = kafkaOutputDataType
+
+	kafkaZookeeperPort := logging.ResourceFields["kafkaZookeeperPort"]
+	kafkaZookeeperPort.Create = true
+	kafkaZookeeperPort.Update = true
+	kafkaZookeeperPort.Default = 2181
+	logging.ResourceFields["kafkaZookeeperPort"] = kafkaZookeeperPort
+
+	kafkaMaxSendRetries := logging.ResourceFields["kafkaMaxSendRetries"]
+	kafkaMaxSendRetries.Create = true
+	kafkaMaxSendRetries.Update = true
+	kafkaMaxSendRetries.Default = 1
+	logging.ResourceFields["kafkaMaxSendRetries"] = kafkaMaxSendRetries
 }
 
 func loggingAuthSchema(loggingAuth *client.Schema) {

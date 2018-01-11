@@ -364,6 +364,9 @@ func NewESDeployment(namespace string, cpu int64, memory int64) *appsv1beta1.Dep
 							},
 						},
 					},
+					NodeSelector: map[string]string{
+						"embedded": "yes",
+					},
 					RestartPolicy: apiv1.RestartPolicyAlways,
 				},
 			},
@@ -406,6 +409,9 @@ func NewKibanaDeployment(namespace string) *appsv1beta1.Deployment {
 								},
 							},
 						},
+					},
+					NodeSelector: map[string]string{
+						"embedded": "yes",
 					},
 					RestartPolicy: apiv1.RestartPolicyAlways,
 				},
